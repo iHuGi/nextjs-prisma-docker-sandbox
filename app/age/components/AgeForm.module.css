@@ -1,0 +1,50 @@
+.formContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inputField {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.submitBtn {
+  padding: 0.75rem;
+  font-size: 1rem;
+  cursor: pointer;
+  background: #333;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+}
+
+.submitBtn:hover {
+  background: #555;
+}
+
+.feedback {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.error {
+  background-color: #ffe6e6;
+  color: #cc0000;
+}
+
+.success {
+  background-color: #e6ffe6;
+  color: #006600;
+}
