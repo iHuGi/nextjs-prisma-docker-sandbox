@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js App Router Sandbox
 
-## Getting Started
+A lightweight experimental project built to evaluate and understand **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), and containerized deployment workflows via **Docker**.
 
-First, run the development server:
+## 🚀 Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+* **Framework:** Next.js (App Router)
+* **Language:** TypeScript (Strict Type Safety)
+* **Runtime & Environment:** Node.js (LTS), Docker & Docker Compose
+* **Styling & UI:** React Hooks (`useState`, `usePathname`), Inline Modular Styling
+* **Architecture:** Component-driven design with a centralized layout and shared global footer.
+
+---
+
+## 📂 Project Structure
+
+```text
+app/
+├── api/
+│   ├── age/
+│   │   └── route.ts         # Strictly typed backend endpoint for precise age calculation
+│   └── club/
+│       └── route.ts         # Strictly typed backend endpoint for football club validation
+├── age/
+│   └── page.tsx             # Age calculator frontend view
+├── club/
+│   └── page.tsx             # Club validator frontend view
+├── components/
+│   └── Footer.tsx           # Centralized global footer & conditional navigation
+├── globals.css              # Global styles
+├── layout.tsx               # Root layout wrapping all routes with global shell
+└── page.tsx                 # Main dashboard menu
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 🐳 Running with Docker
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project is fully containerized for local development and testing.
 
-## Learn More
+1. **Build and start the containers:**
+   ```bash
+   docker compose up -d --build
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Access the application:**
+   Open your browser and navigate to:
+   ```text
+   http://localhost:3000
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Stop the environment:**
+   ```bash
+   docker compose down
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 🛠️ Key Implementation Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+* **App Router Paradigm:** Uses directory-based routing (`app/`) instead of the legacy `pages/` directory.
+* **Strongly Typed Architecture:** Migrated to TypeScript (`.ts`/`.tsx`) with strict payload validation and explicit type checking.
+* **API Route Handlers:** Server-side logic handled via `route.ts` utilizing Next.js `NextResponse` for robust request processing.
+* **DRY Layout Architecture:** The global footer and conditional routing (`usePathname`) eliminate duplicate back-navigation markup across views.
