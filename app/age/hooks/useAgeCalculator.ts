@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 export function useAgeCalculator() {
   const [birthDate, setBirthDate] = useState('');
+  const [momBirthDate, setMomBirthDate] = useState('');
+  const [dadBirthDate, setDadBirthDate] = useState('');
   const [responseMessage, setResponseMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
@@ -13,7 +15,7 @@ export function useAgeCalculator() {
     const res = await fetch('/api/age', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ birthDate }),
+      body: JSON.stringify({ birthDate, momBirthDate, dadBirthDate }),
     });
 
     const data = await res.json();
@@ -27,5 +29,9 @@ export function useAgeCalculator() {
     }
   };
 
-  return { birthDate, setBirthDate, responseMessage, isError, submitForm };
+  return { 
+    birthDate, setBirthDate,
+    momBirthDate, setMomBirthDate,
+    dadBirthDate, setDadBirthDate,
+    responseMessage, isError, submitForm };
 }

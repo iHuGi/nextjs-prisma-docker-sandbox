@@ -4,7 +4,11 @@ import { useAgeCalculator } from '../hooks/useAgeCalculator';
 import styles from './AgeForm.module.css';
 
 export default function AgeForm() {
-  const { birthDate, setBirthDate, responseMessage, isError, submitForm } = useAgeCalculator();
+  const { 
+    birthDate, setBirthDate, 
+    momBirthDate, setMomBirthDate,
+    dadBirthDate, setDadBirthDate,
+    responseMessage, isError, submitForm } = useAgeCalculator();
 
   return (
     <>
@@ -17,6 +21,28 @@ export default function AgeForm() {
             value={birthDate}
             onChange={(e) => setBirthDate(e.target.value)}
             required
+          />
+        </label>
+
+        <label className={styles.inputGroup}>
+          Enter your mother's birth date:
+          <input
+            type="date"
+            className={styles.inputField}
+            value={momBirthDate}
+            onChange={(e) => setMomBirthDate(e.target.value)}
+            // required
+          />
+        </label>
+
+        <label className={styles.inputGroup}>
+          Enter your father's birth date:
+          <input
+            type="date"
+            className={styles.inputField}
+            value={dadBirthDate}
+            onChange={(e) => setDadBirthDate(e.target.value)}
+            // required
           />
         </label>
         

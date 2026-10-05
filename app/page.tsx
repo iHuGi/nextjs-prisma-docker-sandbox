@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
       {/* Main dashboard header */}
-      <h1>Welcome to the Next.js App 🚀</h1>
+      <h1>Welcome to the Next.js App</h1>
       <p style={{ marginBottom: '2rem' }}>Choose one of the tools below to test the App Router:</p>
       
       {/* Navigation container for sub-applications */}
