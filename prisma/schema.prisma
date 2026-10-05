@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// AgeRecord Table
+model AgeRecord {
+  id        Int      @id @default(autoincrement())
+  birthDate String
+  momDate   String?
+  dadDate   String?
+  createdAt DateTime @default(now())
+}
+
+// ClubRecord Table
+model ClubRecord {
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+}

@@ -1,32 +1,30 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '../../lib/prisma';
 
 // Returns a number (int: age) or null if the date is invalid or in the future
 function calculateAge(dateString: string) : number | null {
-  if (!dateString) return null; // Handle empty string case
+  if (!dateString) return null;
 
   const birthDate = new Date(dateString);
   const today = new Date();
 
   if (isNaN(birthDate.getTime()) || birthDate > today) {
-    return null; // Invalid date or future date
+    return null;
   }
 
   let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth(); // Adjusted for month difference
+  const monthDiff = today.getMonth() - birthDate.getMonth();
 
-  // if the birth month hasn't occurred yet this year,
-  // or it's the birth month but the day hasn't occurred yet, subtract one from age
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
 
   if (age > 120) {
-    return null; // Age is outside the valid range
+    return null;
   }
   return age;
 }
 
-// Define a strict interface for the incoming request body
 interface AgeRequestBody {
   birthDate?: unknown;
   momBirthDate?: unknown;
@@ -53,7 +51,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Start building the dynamic message
   let message = `You are ${userAge} years old.`;
 
   // 2. Mother Validation (Optional)
@@ -75,7 +72,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Append to message if valid
     message += ` Your mother is ${momAge} years old.`;
   }
 
@@ -101,6 +97,23 @@ export async function POST(request: Request) {
     message += ` Your father is ${dadAge} years old.`;
   }
 
-  // Return the fully constructed string
-  return NextResponse.json({ message });
+  // 4. Critical Database Insertion & Final Response
+  try {
+    await prisma.ageRecord.create({
+      data: {
+        birthDate: stringBirthDate,
+        momDate: (momBirthDate && stringMomDate.trim() !== '') ? stringMomDate : null,
+        dadDate: (dadBirthDate && stringDadDate.trim() !== '') ? stringDadDate : null,
+      },
+    });
+
+    return NextResponse.json({ message });
+
+  } catch (dbError) {
+    console.error('CRITICAL: Failed to write age record to database:', dbError);
+    return NextResponse.json(
+      { error: 'Error: Error writing to database. Please call the developer.' },
+      { status: 500 }
+    );
+  }
 }

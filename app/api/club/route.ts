@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '../../lib/prisma';
 
 // Define a strict interface for the incoming request body
 interface ClubRequestBody {
@@ -29,10 +30,25 @@ export async function POST(request: Request) {
       message = `${clubString.trim()}? Well, could be worse.`;
     }
 
-    // Success response
-    return NextResponse.json({ message });
+    // Critical Database Insertion & Final Response
+    try {
+      await prisma.clubRecord.create({
+        data: {
+          name: clubString.trim(),
+        },
+      });
+
+      return NextResponse.json({ message });
+      
+    } catch (dbError) {
+      console.error('CRITICAL: Failed to write club record to database:', dbError);
+      return NextResponse.json(
+        { error: 'Error: Error writing to database. Please call the developer.' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    // Handle unexpected server errors
+    // Handle unexpected request JSON parsing errors
     return NextResponse.json({ error: 'Failed to process request.' }, { status: 500 });
   }
 }
