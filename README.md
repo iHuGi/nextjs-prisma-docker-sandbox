@@ -1,5 +1,11 @@
 # Next.js App Router Sandbox
 
+This project serves as an **architectural sandbox** and a **Proof of Concept (PoC)** built to explore and master a new tech stack. 
+
+While the frontend features are intentionally kept minimal (a simple age calculator and club validator), the primary focus of this repository is strictly on backend infrastructure, developer experience (DX), and data integrity. It evaluates **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), persistent database integration via **Prisma 7**, and a frictionless containerized deployment workflow using **Docker**.
+
+# Next.js App Router Sandbox
+
 A lightweight experimental project built to evaluate and understand **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), feature-based modularity, persistent database integration via **Prisma 7**, and containerized deployment workflows using **Docker**.
 
 ## 🛠️ Tech Stack
