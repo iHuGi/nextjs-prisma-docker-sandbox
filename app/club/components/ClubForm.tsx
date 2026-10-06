@@ -5,7 +5,8 @@ import styles from './ClubForm.module.css';
 
 export default function ClubForm() {
   // Destructure state and handlers from the custom hook
-  const { club, setClub, email, setEmail, responseMessage, isError, submitForm } = useClubValidator();
+  const { club, setClub, email, setEmail, description, setDescription,
+     responseMessage, isError, submitForm } = useClubValidator();
 
   return (
     <>
@@ -34,6 +35,18 @@ export default function ClubForm() {
             onChange={(e) => setClub(e.target.value)}
             required
             placeholder="e.g., Sporting"
+          />
+        </label>
+
+        {/* Description Input Field */}
+        <label className={styles.inputGroup}>
+          Enter a description (optional):
+          <input
+          type="text"
+          className={styles.inputField}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g., A great club!"
           />
         </label>
 

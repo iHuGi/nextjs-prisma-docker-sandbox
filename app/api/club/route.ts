@@ -6,11 +6,13 @@ import { z } from 'zod';
 interface ClubRequestBody {
   club?: unknown;
   email?: unknown;
+  description?: unknown;
 }
 
 const clubRequestSchema = z.object({
-  email: z.string().email("Invalid email format."),
-  club: z.string().min(1, "Please enter a valid club name.")
+  email: z.email("Invalid email format."),
+  club: z.string().min(1, "Please enter a valid club name."),
+  description: z.string().optional()
 });
 
 export async function POST(request: Request) {
@@ -20,21 +22,24 @@ export async function POST(request: Request) {
     // 2. Explicitly enforce string conversion (.NET style casting)
     const rawClub = body.club;
     const rawEmail = body.email;
+    const rawDescription = body.description;
     
     const clubString = rawClub !== null && rawClub !== undefined ? String(rawClub) : '';
     const emailString = rawEmail !== null && rawEmail !== undefined ? String(rawEmail) : '';
+    const rawDescriptionString = rawDescription !== null && rawDescription !== undefined ? String(rawDescription) : '';
 
     // 3. Zod validation acting on the sanitized strings
     const validation = clubRequestSchema.safeParse({
       email: emailString,
-      club: clubString
+      club: clubString,
+      description: rawDescriptionString
     });
     
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
     }
 
-    const { email, club } = validation.data;
+    const { email, club, description } = validation.data;
     const clubLower = club.trim().toLowerCase();
     let message = '';
 
@@ -51,10 +56,11 @@ export async function POST(request: Request) {
     try {
       await prisma.clubRecord.upsert({
         where: { email: email },
-        update: { name: club.trim() },
+        update: { name: club.trim(), description: description?.trim() },
         create: {
           email: email,
-          name: club.trim(), // The database column is mapped to 'name'
+          name: club.trim(),
+          description: description?.trim() || null
         },
       });
 

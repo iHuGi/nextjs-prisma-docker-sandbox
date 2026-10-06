@@ -3,6 +3,7 @@ import { useState } from 'react';
 export function useClubValidator() {
   const [email, setEmail] = useState('');
   const [club, setClub] = useState('');
+  const [description, setDescription] = useState('');
   const [responseMessage, setResponseMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
@@ -15,7 +16,7 @@ export function useClubValidator() {
       const res = await fetch('/api/club', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ club, email }),
+        body: JSON.stringify({ club, email, description }),
       });
 
       const data = await res.json();
@@ -33,5 +34,6 @@ export function useClubValidator() {
     }
   };
 
-  return { club, setClub, email, setEmail, responseMessage, isError, submitForm };
+  return { club, setClub, email, setEmail, description, setDescription, 
+    responseMessage, isError, submitForm };
 }
