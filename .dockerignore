@@ -1,7 +1,21 @@
+# Dependency directories
 node_modules
+.pnp
+.pnp.js
+
+# Local build outputs
 .next
+out
+build
+
+# Version control and documentation
 .git
 .gitignore
-Dockerfile
-docker-compose.yml
 README.md
+
+# Environment and configuration files (secrets should not be baked into the image)
+.env*
+
+# OS specific files
+.DS_Store
+Thumbs.db
