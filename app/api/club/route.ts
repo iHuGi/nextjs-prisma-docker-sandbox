@@ -1,40 +1,60 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../lib/prisma';
+import { z } from 'zod';
 
-// Define a strict interface for the incoming request body
+// 1. Strict and defensive interface (.NET style)
 interface ClubRequestBody {
   club?: unknown;
+  email?: unknown;
 }
+
+const clubRequestSchema = z.object({
+  email: z.string().email("Invalid email format."),
+  club: z.string().min(1, "Please enter a valid club name.")
+});
 
 export async function POST(request: Request) {
   try {
     const body: ClubRequestBody = await request.json();
     
-    // Explicitly enforce string conversion and validation (.NET style)
+    // 2. Explicitly enforce string conversion (.NET style casting)
     const rawClub = body.club;
+    const rawEmail = body.email;
+    
     const clubString = rawClub !== null && rawClub !== undefined ? String(rawClub) : '';
+    const emailString = rawEmail !== null && rawEmail !== undefined ? String(rawEmail) : '';
 
-    if (!clubString || clubString.trim() === '') {
-      return NextResponse.json({ error: 'Please enter a valid club name.' }, { status: 400 });
+    // 3. Zod validation acting on the sanitized strings
+    const validation = clubRequestSchema.safeParse({
+      email: emailString,
+      club: clubString
+    });
+    
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error.issues[0].message }, { status: 400 });
     }
 
-    const clubLower = clubString.trim().toLowerCase();
+    const { email, club } = validation.data;
+    const clubLower = club.trim().toLowerCase();
     let message = '';
 
-    // Determine response based on the club
+    // 4. Core business logic
     if (clubLower === 'sporting') {
-      message = 'Excellent taste, lion! 🦁💚';
+      message = 'Excellent taste, lion!';
     } else if (clubLower === 'porto' || clubLower === 'benfica') {
-      message = 'Bad taste bro... that\'s rough! 🤦‍♂️';
+      message = 'Bad taste bro... that\'s rough!';
     } else {
-      message = `${clubString.trim()}? Well, could be worse.`;
+      message = `${club.trim()}? Well, could be worse.`;
     }
 
-    // Critical Database Insertion & Final Response
+    // 5. Critical Database Insertion (Upsert)
     try {
-      await prisma.clubRecord.create({
-        data: {
-          name: clubString.trim(),
+      await prisma.clubRecord.upsert({
+        where: { email: email },
+        update: { name: club.trim() },
+        create: {
+          email: email,
+          name: club.trim(), // The database column is mapped to 'name'
         },
       });
 

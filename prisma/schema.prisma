@@ -8,16 +8,18 @@ datasource db {
 
 // AgeRecord Table
 model AgeRecord {
-  id        Int      @id @default(autoincrement())
-  birthDate String
-  momDate   String?
-  dadDate   String?
-  createdAt DateTime @default(now())
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  birthDate DateTime  @db.Date
+  momDate   DateTime? @db.Date
+  dadDate   DateTime? @db.Date
+  createdAt DateTime  @default(now())
 }
 
 // ClubRecord Table
 model ClubRecord {
   id        Int      @id @default(autoincrement())
+  email     String   @unique
   name      String
   createdAt DateTime @default(now())
 }
