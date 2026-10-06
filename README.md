@@ -1,11 +1,5 @@
 # Next.js App Router Sandbox
 
-This project serves as an **architectural sandbox** and a **Proof of Concept (PoC)** built to explore and master a new tech stack. 
-
-While the frontend features are intentionally kept minimal (a simple age calculator and club validator), the primary focus of this repository is strictly on backend infrastructure, developer experience (DX), and data integrity. It evaluates **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), persistent database integration via **Prisma 7**, and a frictionless containerized deployment workflow using **Docker**.
-
-# Next.js App Router Sandbox
-
 A lightweight experimental project built to evaluate and understand **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), feature-based modularity, persistent database integration via **Prisma 7**, and containerized deployment workflows using **Docker**.
 
 ## 🛠️ Tech Stack
@@ -23,31 +17,40 @@ A lightweight experimental project built to evaluate and understand **Next.js (A
 app/
 ├── api/
 │   ├── age/
-│   │   └── route.ts                 # Strictly typed backend endpoint for age calculation
-│   └── club/
-│       └── route.ts                 # Strictly typed backend endpoint for football club validation
+│   │   └── route.ts                # Strictly typed backend endpoint for age calculation
+│   ├── club/
+│   │   └── route.ts                # Strictly typed backend endpoint for football club validation
+│   └── results/
+│       └── route.ts                # Backend endpoint executing the PostgreSQL stored function
 ├── age/
 │   ├── components/
-│   │   ├── AgeForm.tsx              # Age calculator frontend component
-│   │   └── AgeForm.module.css       # Scoped styles for the age form
+│   │   ├── AgeForm.tsx             # Age calculator frontend component
+│   │   └── AgeForm.module.css      # Scoped styles for the age form
 │   ├── hooks/
-│   │   └── useAgeCalculator.ts      # State management and API logic for the age feature
-│   └── page.tsx                     # Age calculator Server Component
+│   │   └── useAgeCalculator.ts     # State management and API logic for the age feature
+│   └── page.tsx                    # Age calculator Server Component
 ├── club/
 │   ├── components/
-│   │   ├── ClubForm.tsx             # Club validator frontend component
-│   │   └── ClubForm.module.css      # Scoped styles for the club form
+│   │   ├── ClubForm.tsx            # Club validator frontend component
+│   │   └── ClubForm.module.css     # Scoped styles for the club form
 │   ├── hooks/
-│   │   └── useClubValidator.ts      # State management and API logic for the club feature
-│   └── page.tsx                     # Club validator Server Component
+│   │   └── useClubValidator.ts     # State management and API logic for the club feature
+│   └── page.tsx                    # Club validator Server Component
+├── results/
+│   ├── components/
+│   │   ├── ResultForm.tsx          # Consolidated results frontend component
+│   │   └── ResultForm.module.css   # Scoped styles for the results form & JSON viewer
+│   ├── hooks/
+│   │   └── useResultValidator.ts   # State management and API logic for the results feature
+│   └── page.tsx                    # Consolidated results Server Component
 ├── components/
-│   └── Footer.tsx                   # Centralized global footer & conditional navigation
-├── globals.css                      # Global styles
-├── layout.tsx                       # Root layout wrapping all routes with global shell
-└── page.tsx                         # Main dashboard menu
+│   └── Footer.tsx                  # Centralized global footer & conditional navigation
+├── globals.css                     # Global styles
+├── layout.tsx                      # Root layout wrapping all routes with global shell
+└── page.tsx                        # Main dashboard menu
 prisma/
-└── schema.prisma                    # Prisma data models (AgeRecord & ClubRecord)
-prisma.config.ts                     # Prisma 7 configuration file (Datasource & Client settings)
+└── schema.prisma                   # Prisma data models (AgeRecord & ClubRecord)
+prisma.config.ts                    # Prisma 7 configuration file (Datasource & Client settings)
 
 ```
 
@@ -64,10 +67,10 @@ To support the PostgreSQL adapter configuration required by **Prisma 7**, the fo
 
 This project is fully containerized for local development and persistence.
 
-1. **Build and start the containers:**
+1. **Build and start the containers (with a clean build if needed):**
 
 ```bash
-docker compose up -d --build
+docker compose up --build --no-cache
 
 ```
 
@@ -120,6 +123,17 @@ docker compose exec db psql -U admin -d app_db
 
 ```
 
+> ⚠️ **Database Requirement for the Results Module:**
+> To successfully execute the `/api/results` endpoint and view consolidated records, the underlying PostgreSQL database must have the custom PL/pgSQL function created beforehand:
+> ```sql
+> CREATE OR REPLACE FUNCTION get_full_user_summary(email_input TEXT)
+> RETURNS TABLE (...) -- defined according to your consolidated table structure
+> ...
+> 
+> ```
+> 
+> 
+
 ## ⚙️ Prerequisites & Local Setup
 
 If you want to run or develop locally outside of Docker, ensure you have **Node.js (LTS)** installed, then install the dependencies:
@@ -134,7 +148,7 @@ npm install
 * **App Router Paradigm:** Uses directory-based routing (`app/`) for server/client component boundaries.
 * **Feature-Based Modularity:** Business logic is abstracted into custom hooks and UI is isolated in dedicated components.
 * **Strongly Typed Architecture:** Type safety enforced across forms using modern React event typing (`React.SyntheticEvent`).
-* **Prisma 7 Configuration:** Relies on `prisma.config.ts` for database connection management and `@prisma/adapter-pg` for query handling.
+* **Prisma 7 Configuration:** Relies on `prisma.config.ts` for database connection management and `@prisma/adapter-pg` for raw query handling (`prisma.$queryRaw`).
 * **Persistent Storage:** Configured with Docker volumes to ensure database state survives container restarts.
 
 ## 🛡️ Data Integrity & Security Architecture
@@ -142,9 +156,9 @@ npm install
 The application implements a robust, defensive data submission pipeline designed around strict integrity constraints and modern validation patterns:
 
 * **Email-Anchored Database Upserts (`Prisma`):** Both `AgeRecord` and `ClubRecord` database models enforce a strict unique constraint on the `email` column (`@unique`). Backend mutation logic utilizes Prisma's `upsert` operations, ensuring that user submissions seamlessly update existing records or create new ones without throwing primary key violations or generating data duplicates.
-* **Rigorous Input Validation (`Zod`):** Incoming API requests are intercepted and sanitized using Zod schemas. Manual defensive checks are replaced by strongly-typed validation rules (such as RFC-compliant email formats and strict type-casting from `unknown`), rejecting malformed payloads with descriptive error codes (`400 Bad Request`) before touching the persistence layer.
+* **Rigorous Input Validation (`Zod`):** Incoming API requests are intercepted and sanitized using Zod schemas. Manual defensive checks are replaced by strongly-typed validation rules (such as email formats and strict type-casting from `unknown`), rejecting malformed payloads with descriptive error codes (`400 Bad Request`) before touching the persistence layer.
 * **Strict Type Safety (.NET-Inspired Interface Pattern):** API routes explicitly declare request body interfaces with `unknown` types, enforcing deliberate type-narrowing and runtime safety guards prior to executing business logic or interacting with the database client.
-* **Native Database Date Types:** Temporal data (such as birth dates) leverages native PostgreSQL `DATE` types (`DateTime @db.Date` via Prisma), avoiding timezone pollution and ensuring proper chronological range integrity.
+* **Optimized Database Layer (Stored Functions & B-Tree Indexes):** High-performance backend routines leverage native PostgreSQL stored functions combined with custom B-tree indexes featuring `INCLUDE` clauses to minimize heap fetches and accelerate data retrieval.
 
 ## ⚠️ Troubleshooting & Common Pitfalls
 
@@ -160,3 +174,5 @@ fuser -k 5555/tcp
 pkill -f "prisma studio"
 
 ```
+
+# NOTE: README built by LLM, validated by me.
