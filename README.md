@@ -116,7 +116,7 @@ npm run studio
 * **Access the PostgreSQL container shell:**
 
 ```bash
-docker compose exec postgres_db psql -U postgres -d postgres
+docker compose exec db psql -U admin -d app_db
 
 ```
 
