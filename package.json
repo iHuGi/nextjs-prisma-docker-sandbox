@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "studio": "prisma studio --port 5555 --browser none"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -21,6 +22,7 @@
     "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
+    "dotenv": "^18.0.5",
     "prisma": "^7.10.0",
     "typescript": "^7.0.2"
   }
