@@ -175,4 +175,4 @@ pkill -f "prisma studio"
 
 ```
 
-# NOTE: README built by LLM, validated by me.
+# NOTE: README built by LLM, validated by me!
