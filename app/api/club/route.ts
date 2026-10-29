@@ -2,15 +2,28 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 
-// 1. Strict and defensive interface (.NET style)
+/**
+ * ============================================================================
+ * POST /api/club
+ * ============================================================================
+ * Purpose: Validates and persists a user's club affiliation record.
+ * Architectural Note: Does not implicitly create parent User records. The
+ * user profile must already exist in the master User table prior to submission.
+ * ============================================================================
+ */
+
+// 1. Strict and defensive request payload contract (.NET style)
 interface ClubRequestBody {
   club?: unknown;
   email?: unknown;
   description?: unknown;
 }
 
+// 2. Validation schema enforcing @ presence and non-empty club name
 const clubRequestSchema = z.object({
-  email: z.email("Invalid email format."),
+  email: z.string().refine((val) => val.includes("@"), {
+    message: "Invalid email format. Email must contain an @ symbol.",
+  }),
   club: z.string().min(1, "Please enter a valid club name."),
   description: z.string().optional(),
 });
@@ -19,7 +32,7 @@ export async function POST(request: Request) {
   try {
     const body: ClubRequestBody = await request.json();
 
-    // 2. Explicitly enforce string conversion (.NET style casting)
+    // 3. Explicitly enforce string casting to prevent runtime type coercion issues
     const rawClub = body.club;
     const rawEmail = body.email;
     const rawDescription = body.description;
@@ -33,7 +46,7 @@ export async function POST(request: Request) {
         ? String(rawDescription)
         : "";
 
-    // 3. Zod validation acting on the sanitized strings
+    // 4. Execute Zod schema validation on sanitized string primitives
     const validation = clubRequestSchema.safeParse({
       email: emailString,
       club: clubString,
@@ -54,7 +67,7 @@ export async function POST(request: Request) {
     const clubLower = sanitizedClub.toLowerCase();
     let message = "";
 
-    // 4. Core business logic
+    // 5. Evaluate domain business rules for club selection
     if (clubLower === "sporting") {
       message = "Excellent taste, lion!";
     } else if (clubLower === "porto" || clubLower === "benfica") {
@@ -63,28 +76,37 @@ export async function POST(request: Request) {
       message = `${sanitizedClub}? Well, could be worse.`;
     }
 
-    // 5. Critical Database Insertion (Normalized User + ClubRecord Upsert)
+    // 6. Verify parent User record existence (no silent/implicit user creation)
+    const existingUser = await prisma.user.findUnique({
+      where: { email: validEmail },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        {
+          error:
+            "User profile not found for this email. Please select a valid user or consult existing profiles in the Users menu.",
+        },
+        { status: 404 },
+      );
+    }
+
+    // 7. Atomic transaction: update parent audit timestamp and upsert ClubRecord
     const now = new Date();
 
     try {
       await prisma.$transaction(async (tx) => {
-        // Step A: Upsert parent User record (sets updatedAt only on update)
-        const user = await tx.user.upsert({
-          where: { email: validEmail },
-          create: {
-            email: validEmail,
-            updatedAt: null,
-          },
-          update: {
-            updatedAt: now,
-          },
+        // Step A: Update parent User modification timestamp
+        await tx.user.update({
+          where: { id: existingUser.id },
+          data: { updatedAt: now },
         });
 
-        // Step B: Upsert child ClubRecord linked via integer surrogate key (userId)
+        // Step B: Upsert child ClubRecord linked via surrogate key (userId)
         await tx.clubRecord.upsert({
-          where: { userId: user.id },
+          where: { userId: existingUser.id },
           create: {
-            userId: user.id,
+            userId: existingUser.id,
             name: sanitizedClub,
             description: sanitizedDescription,
             updatedAt: null,
@@ -111,7 +133,7 @@ export async function POST(request: Request) {
       );
     }
   } catch (error) {
-    // Handle unexpected request JSON parsing errors
+    // Handle unexpected request JSON parsing or unhandled runtime exceptions
     return NextResponse.json(
       { error: "Failed to process request." },
       { status: 500 },

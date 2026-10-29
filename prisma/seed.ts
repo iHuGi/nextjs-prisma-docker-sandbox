@@ -34,6 +34,116 @@ const COUNTRIES = [
 ];
 
 async function main() {
+  console.log(
+    "🛠️ Creating PostgreSQL Stored Function (get_user_consolidated_summary)...",
+  );
+
+  console.log("🛠️ Creating PostgreSQL Stored Functions...");
+
+  await prisma.$executeRawUnsafe(`
+    DROP FUNCTION IF EXISTS get_user_consolidated_summary(TEXT);
+    DROP FUNCTION IF EXISTS get_paginated_users(INT, INT);
+
+    -- 1. Single user summary function
+    CREATE OR REPLACE FUNCTION get_user_consolidated_summary(p_email TEXT)
+    RETURNS TABLE (
+      user_id INT,
+      email TEXT,
+      identification_number BIGINT,
+      phone_number BIGINT,
+      country_code VARCHAR(5),
+      country_name TEXT,
+      birth_date TIMESTAMP(3),
+      mom_date TIMESTAMP(3),
+      dad_date TIMESTAMP(3),
+      club_name TEXT,
+      club_description TEXT,
+      custom_data JSONB,
+      user_created_at TIMESTAMP(3),
+      user_updated_at TIMESTAMP(3)
+    )
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      RETURN QUERY
+      SELECT
+        u.id AS user_id,
+        u.email::TEXT AS email,
+        u."identificationNumber" AS identification_number,
+        u."phoneNumber" AS phone_number,
+        c.code AS country_code,
+        c.name::TEXT AS country_name,
+        a."birthDate" AS birth_date,
+        a."momDate" AS mom_date,
+        a."dadDate" AS dad_date,
+        cl.name::TEXT AS club_name,
+        cl.description::TEXT AS club_description,
+        COALESCE(m."customData", '{}'::jsonb) AS custom_data,
+        u."createdAt" AS user_created_at,
+        u."updatedAt" AS user_updated_at
+      FROM "User" u
+      LEFT JOIN "Country" c ON c.id = u."countryId"
+      LEFT JOIN "AgeRecord" a ON a."userId" = u.id
+      LEFT JOIN "ClubRecord" cl ON cl."userId" = u.id
+      LEFT JOIN "UserMetadata" m ON m."userId" = u.id
+      WHERE LOWER(u.email) = LOWER(TRIM(p_email));
+    END;
+    $$;
+
+    -- 2. Paginated users function
+    CREATE OR REPLACE FUNCTION get_paginated_users(p_limit INT, p_offset INT)
+    RETURNS TABLE (
+      user_id INT,
+      email TEXT,
+      identification_number BIGINT,
+      phone_number BIGINT,
+      country_code VARCHAR(5),
+      country_name TEXT,
+      birth_date TIMESTAMP(3),
+      mom_date TIMESTAMP(3),
+      dad_date TIMESTAMP(3),
+      club_name TEXT,
+      club_description TEXT,
+      custom_data JSONB,
+      user_created_at TIMESTAMP(3),
+      user_updated_at TIMESTAMP(3),
+      total_count BIGINT
+    )
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      v_total BIGINT;
+    BEGIN
+      SELECT COUNT(*) INTO v_total FROM "User";
+      
+      RETURN QUERY
+      SELECT
+        u.id AS user_id,
+        u.email::TEXT AS email,
+        u."identificationNumber" AS identification_number,
+        u."phoneNumber" AS phone_number,
+        c.code AS country_code,
+        c.name::TEXT AS country_name,
+        a."birthDate" AS birth_date,
+        a."momDate" AS mom_date,
+        a."dadDate" AS dad_date,
+        cl.name::TEXT AS club_name,
+        cl.description::TEXT AS club_description,
+        COALESCE(m."customData", '{}'::jsonb) AS custom_data,
+        u."createdAt" AS user_created_at,
+        u."updatedAt" AS user_updated_at,
+        v_total AS total_count
+      FROM "User" u
+      LEFT JOIN "Country" c ON c.id = u."countryId"
+      LEFT JOIN "AgeRecord" a ON a."userId" = u.id
+      LEFT JOIN "ClubRecord" cl ON cl."userId" = u.id
+      LEFT JOIN "UserMetadata" m ON m."userId" = u.id
+      ORDER BY u.id ASC
+      LIMIT p_limit OFFSET p_offset;
+    END;
+    $$;
+  `);
+
   console.log("🌍 Seeding countries (Europe, US, Canada)...");
 
   for (const country of COUNTRIES) {
@@ -236,9 +346,15 @@ async function main() {
     console.log("👤 Seeding test candidate user...");
     const defaultUser = await prisma.user.upsert({
       where: { email: "hugo@email.com" },
-      update: { countryId: portugal.id },
+      update: {
+        identificationNumber: BigInt(12345678),
+        phoneNumber: BigInt(912345678),
+        countryId: portugal.id,
+      },
       create: {
         email: "hugo@email.com",
+        identificationNumber: BigInt(12345678),
+        phoneNumber: BigInt(912345678),
         countryId: portugal.id,
       },
     });
@@ -288,7 +404,7 @@ async function main() {
     }
   }
 
-  console.log("✅ Seed completed successfully!");
+  console.log("✅ Seed and Stored Function created successfully!");
 }
 
 main()

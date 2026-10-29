@@ -1,139 +1,66 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
-import { Prisma } from "@prisma/client";
-import {
-  RawMetadataRequestBody,
-  userMetadataDtoSchema,
-  CustomDataDictionary,
-} from "../../lib/dtos/metadata.dto";
 
+/**
+ * ============================================================================
+ * POST /api/metadata
+ * ============================================================================
+ * Purpose: Persists unstructured JSONB metadata for an existing User record.
+ * Architectural Note: Enforces referential integrity by verifying that the
+ * target User exists before upserting UserMetadata.
+ * ============================================================================
+ */
 export async function POST(request: Request) {
   try {
-    const body: RawMetadataRequestBody = await request.json();
+    const body = await request.json();
+    const { email, customData } = body;
 
-    // 1. Validate incoming payload against the strict UserMetadata DTO
-    const validation = userMetadataDtoSchema.safeParse(body);
-
-    if (!validation.success) {
+    // 1. Validate email presence and @ symbol constraint
+    if (!email || !String(email).includes("@")) {
       return NextResponse.json(
-        { error: validation.error.issues[0].message },
+        { error: "Please provide a valid email containing an @ symbol." },
         { status: 400 },
       );
     }
 
-    const { email, customData } = validation.data;
-    const now = new Date();
+    const validEmail = String(email).trim().toLowerCase();
 
-    // 2. Execute ACID transaction: Upsert Parent User + Insert/Update JSONB UserMetadata
-    try {
-      const result = await prisma.$transaction(async (tx) => {
-        // Step A: Upsert parent User (createdAt on first insert, updatedAt on subsequent touch)
-        const user = await tx.user.upsert({
-          where: { email },
-          create: {
-            email,
-            updatedAt: null,
-          },
-          update: {
-            updatedAt: now,
-          },
-        });
+    // 2. Lookup parent User record by email
+    const existingUser = await prisma.user.findUnique({
+      where: { email: validEmail },
+    });
 
-        // Step B: Check if UserMetadata row already exists for this userId
-        const existingMetadata = await tx.userMetadata.findUnique({
-          where: { userId: user.id },
-        });
-
-        // Clean helper: remove keys explicitly set to null so users can delete custom attributes
-        const sanitizeDictionary = (dict: Record<string, unknown>) => {
-          const cleaned: Record<string, Prisma.InputJsonValue> = {};
-          for (const [key, val] of Object.entries(dict)) {
-            if (val !== null && val !== undefined) {
-              cleaned[key] = val as Prisma.InputJsonValue;
-            }
-          }
-          return cleaned;
-        };
-
-        if (!existingMetadata) {
-          // First-time creation: updatedAt remains strictly NULL
-          const initialPayload = sanitizeDictionary(customData);
-
-          const created = await tx.userMetadata.create({
-            data: {
-              userId: user.id,
-              customData: initialPayload,
-              updatedAt: null,
-            },
-          });
-
-          return {
-            action: "created" as const,
-            userId: user.id,
-            email: user.email,
-            metadata: created,
-          };
-        } else {
-          // Update existing row: merge existing JSONB attributes with incoming updates and set updatedAt
-          const currentJson =
-            existingMetadata.customData &&
-            typeof existingMetadata.customData === "object" &&
-            !Array.isArray(existingMetadata.customData)
-              ? (existingMetadata.customData as CustomDataDictionary)
-              : {};
-
-          const mergedPayload = sanitizeDictionary({
-            ...currentJson,
-            ...customData,
-          });
-
-          const updated = await tx.userMetadata.update({
-            where: { id: existingMetadata.id },
-            data: {
-              customData: mergedPayload,
-              updatedAt: now,
-            },
-          });
-
-          return {
-            action: "updated" as const,
-            userId: user.id,
-            email: user.email,
-            metadata: updated,
-          };
-        }
-      });
-
-      return NextResponse.json({
-        message:
-          result.action === "created"
-            ? "Custom metadata created successfully."
-            : "Custom metadata updated successfully.",
-        data: {
-          metadataId: result.metadata.id,
-          userId: result.userId,
-          email: result.email,
-          customData: result.metadata.customData,
-          createdAt: result.metadata.createdAt,
-          updatedAt: result.metadata.updatedAt,
-        },
-      });
-    } catch (dbError) {
-      console.error(
-        "CRITICAL: Failed to write metadata JSONB to database:",
-        dbError,
-      );
+    if (!existingUser) {
       return NextResponse.json(
         {
           error:
-            "Error: Error writing metadata to database. Please call the developer.",
+            "User profile not found for this email. Please select a valid user or consult existing profiles in the Users menu.",
         },
-        { status: 500 },
+        { status: 404 },
       );
     }
-  } catch (error) {
+
+    // 3. Upsert JSONB metadata record linked via integer surrogate key (userId)
+    const now = new Date();
+
+    const metadata = await prisma.userMetadata.upsert({
+      where: { userId: existingUser.id },
+      create: {
+        userId: existingUser.id,
+        customData: customData || {},
+        updatedAt: null,
+      },
+      update: {
+        customData: customData || {},
+        updatedAt: now,
+      },
+    });
+
+    return NextResponse.json({ success: true, metadata });
+  } catch (error: any) {
+    console.error("CRITICAL: Metadata POST Error:", error);
     return NextResponse.json(
-      { error: "Failed to process metadata request." },
+      { error: error.message || "Failed to save metadata." },
       { status: 500 },
     );
   }

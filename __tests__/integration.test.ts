@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { POST as upsertUser } from "../app/api/users/route";
 import { POST as submitAge } from "../app/api/age/route";
 import { POST as submitClub } from "../app/api/club/route";
 import { POST as fetchResults } from "../app/api/results/route";
-import {
-  GET as getAdminConfig,
-  POST as postAdminConfig,
-} from "../app/api/admin/config/route";
+import { POST as postAdminConfig } from "../app/api/admin/config/route";
 import { prisma } from "../app/lib/prisma";
 
 // Run it from the command line via: npm run test
@@ -14,10 +12,11 @@ const TEST_EMAIL_OPTIONAL_PARENTS = "jane.optional.parents@gmail.com";
 const TEST_COUNTRY_CODE = "PT";
 const TEST_SECTION_NAME = "Integration Test Section";
 
-describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engine & JSONB)", () => {
+describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Users, Admin Engine & JSONB)", () => {
   let createdUserId: number;
   let createdSectionId: number;
   let createdQuestionId: number;
+  let ptCountryId: number;
 
   /**
    * Purge pre-existing test state to ensure complete test isolation.
@@ -30,11 +29,16 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     const country = await prisma.country.findUnique({
       where: { code: TEST_COUNTRY_CODE },
     });
-    if (country) {
-      await prisma.configSection.deleteMany({
-        where: { countryId: country.id, name: TEST_SECTION_NAME },
-      });
+    if (!country) {
+      throw new Error(
+        "Country PT must exist in the database before running integration tests.",
+      );
     }
+    ptCountryId = country.id;
+
+    await prisma.configSection.deleteMany({
+      where: { countryId: country.id, name: TEST_SECTION_NAME },
+    });
   });
 
   /**
@@ -45,19 +49,72 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
       where: { email: { in: [TEST_EMAIL, TEST_EMAIL_OPTIONAL_PARENTS] } },
     });
 
-    const country = await prisma.country.findUnique({
-      where: { code: TEST_COUNTRY_CODE },
-    });
-    if (country) {
+    if (ptCountryId) {
       await prisma.configSection.deleteMany({
-        where: { countryId: country.id, name: TEST_SECTION_NAME },
+        where: { countryId: ptCountryId, name: TEST_SECTION_NAME },
       });
     }
 
     await prisma.$disconnect();
   });
 
-  it("Should insert AgeRecord with all dates, create parent User with null updatedAt, and verify in PostgreSQL", async () => {
+  it("Should create master User profiles via POST /api/users with BigInt identification and phone numbers", async () => {
+    const req1 = new Request("http://localhost:3000/api/users", {
+      method: "POST",
+      body: JSON.stringify({
+        email: TEST_EMAIL,
+        identificationNumber: "123456789",
+        phoneNumber: "912345678",
+        countryId: ptCountryId,
+      }),
+    });
+    const res1 = await upsertUser(req1);
+    const json1 = await res1.json();
+    expect(res1.status).toBe(200);
+    expect(json1.success).toBe(true);
+    expect(json1.user.email).toBe(TEST_EMAIL);
+    expect(json1.user.identificationNumber).toBe("123456789");
+    expect(json1.user.updatedAt).toBeNull();
+    createdUserId = json1.user.id;
+
+    const req2 = new Request("http://localhost:3000/api/users", {
+      method: "POST",
+      body: JSON.stringify({
+        email: TEST_EMAIL_OPTIONAL_PARENTS,
+        identificationNumber: "987654321",
+        phoneNumber: "961234567",
+        countryId: ptCountryId,
+      }),
+    });
+    const res2 = await upsertUser(req2);
+    expect(res2.status).toBe(200);
+  });
+
+  it("Should reject AgeRecord and ClubRecord submissions with 404 when User does not exist", async () => {
+    const unknownEmail = "nonexistent.ghost.user@gmail.com";
+
+    const ageReq = new Request("http://localhost:3000/api/age", {
+      method: "POST",
+      body: JSON.stringify({
+        email: unknownEmail,
+        birthDate: "1991-08-02",
+      }),
+    });
+    const ageRes = await submitAge(ageReq);
+    expect(ageRes.status).toBe(404);
+
+    const clubReq = new Request("http://localhost:3000/api/club", {
+      method: "POST",
+      body: JSON.stringify({
+        email: unknownEmail,
+        club: "Sporting",
+      }),
+    });
+    const clubRes = await submitClub(clubReq);
+    expect(clubRes.status).toBe(404);
+  });
+
+  it("Should insert AgeRecord for existing User and update parent User.updatedAt", async () => {
     const req = new Request("http://localhost:3000/api/age", {
       method: "POST",
       body: JSON.stringify({
@@ -77,12 +134,9 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     });
 
     expect(userRecord).not.toBeNull();
-    expect(userRecord?.email).toBe(TEST_EMAIL);
-    expect(userRecord?.updatedAt).toBeNull();
+    expect(userRecord?.updatedAt).not.toBeNull();
     expect(userRecord?.ageRecord).not.toBeNull();
-    expect(userRecord?.ageRecord?.userId).toBe(userRecord?.id);
-
-    createdUserId = userRecord!.id;
+    expect(userRecord?.ageRecord?.userId).toBe(createdUserId);
   });
 
   it("Should allow AgeRecord submission when mother and father birth dates are omitted (optional)", async () => {
@@ -108,7 +162,7 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     expect(userRecord?.ageRecord).not.toBeNull();
   });
 
-  it("Should insert ClubRecord, trigger User.updatedAt timestamp update, and verify in PostgreSQL", async () => {
+  it("Should insert ClubRecord for existing User and verify in PostgreSQL", async () => {
     const req = new Request("http://localhost:3000/api/club", {
       method: "POST",
       body: JSON.stringify({
@@ -127,14 +181,12 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     });
 
     expect(userRecord).not.toBeNull();
-    expect(userRecord?.updatedAt).not.toBeNull();
     expect(userRecord?.clubRecord).not.toBeNull();
     expect(userRecord?.clubRecord?.name).toBe("Sporting");
-    expect(userRecord?.clubRecord?.userId).toBe(userRecord?.id);
+    expect(userRecord?.clubRecord?.userId).toBe(createdUserId);
   });
 
   it("Should create a Section, create an Optional Question, edit answers without duplicating, and soft-delete (Archive)", async () => {
-    // 1. Create Section
     const secReq = new Request("http://localhost:3000/api/admin/config", {
       method: "POST",
       body: JSON.stringify({
@@ -149,7 +201,6 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     expect(secJson.success).toBe(true);
     createdSectionId = secJson.section.id;
 
-    // 2. Create Optional Question (isRequired: false)
     const qReq = new Request("http://localhost:3000/api/admin/config", {
       method: "POST",
       body: JSON.stringify({
@@ -186,7 +237,6 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Admin Engi
     expect(qJson.question.answers).toHaveLength(2);
     createdQuestionId = qJson.question.id;
 
-    // 3. Edit Question Answers & Verify no stale duplicates remain active
     const editReq = new Request("http://localhost:3000/api/admin/config", {
       method: "POST",
       body: JSON.stringify({
