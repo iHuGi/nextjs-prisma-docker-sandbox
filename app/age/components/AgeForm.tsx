@@ -1,22 +1,27 @@
-'use client';
+"use client";
 
-import { useAgeCalculator } from '../hooks/useAgeCalculator';
-import styles from './AgeForm.module.css';
+import { useAgeCalculator } from "../hooks/useAgeCalculator";
+import styles from "./AgeForm.module.css";
 
 export default function AgeForm() {
   // Destructure all required states and handlers from the custom hook
   const {
-    email, setEmail,
-    birthDate, setBirthDate, 
-    momBirthDate, setMomBirthDate,
-    dadBirthDate, setDadBirthDate,
-    responseMessage, isError, submitForm 
+    email,
+    setEmail,
+    birthDate,
+    setBirthDate,
+    momBirthDate,
+    setMomBirthDate,
+    dadBirthDate,
+    setDadBirthDate,
+    responseMessage,
+    isError,
+    submitForm,
   } = useAgeCalculator();
 
   return (
     <>
       <form onSubmit={submitForm} className={styles.formContainer}>
-        
         {/* Email Input Field (Required for database upsert) */}
         <label className={styles.inputGroup}>
           Enter your email:
@@ -65,7 +70,7 @@ export default function AgeForm() {
             // required
           />
         </label>
-        
+
         {/* Form Submission Button */}
         <button type="submit" className={styles.submitBtn}>
           Calculate Age
@@ -74,7 +79,9 @@ export default function AgeForm() {
 
       {/* Conditional rendering for API response feedback */}
       {responseMessage && (
-        <div className={`${styles.feedback} ${isError ? styles.error : styles.success}`}>
+        <div
+          className={`${styles.feedback} ${isError ? styles.error : styles.success}`}
+        >
           {responseMessage}
         </div>
       )}

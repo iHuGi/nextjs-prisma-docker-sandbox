@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '../../lib/prisma';
-import { z } from 'zod';
+import { NextResponse } from "next/server";
+import { prisma } from "../../lib/prisma";
+import { z } from "zod";
 
-// Returns a number (int: age) or null if the date is invalid or in the future
-function calculateAge(dateString: string) : number | null {
+function calculateAge(dateString: string): number | null {
   if (!dateString) return null;
 
   const birthDate = new Date(dateString);
@@ -16,7 +15,10 @@ function calculateAge(dateString: string) : number | null {
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
 
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
     age--;
   }
 
@@ -26,7 +28,6 @@ function calculateAge(dateString: string) : number | null {
   return age;
 }
 
-// Strict interface for the incoming request body (.NET style)
 interface AgeRequestBody {
   email?: unknown;
   birthDate?: unknown;
@@ -34,9 +35,8 @@ interface AgeRequestBody {
   dadBirthDate?: unknown;
 }
 
-// Zod schema strictly for validating the email
 const emailRequestSchema = z.object({
-  email: z.string().email("Invalid email format.")
+  email: z.string().email("Invalid email format."),
 });
 
 export async function POST(request: Request) {
@@ -44,115 +44,159 @@ export async function POST(request: Request) {
     const body: AgeRequestBody = await request.json();
     const { email, birthDate, momBirthDate, dadBirthDate } = body;
 
-    // 1. Zod Validation for Email
     const rawEmail = email;
-    const emailString = rawEmail !== null && rawEmail !== undefined ? String(rawEmail) : '';
-    
-    const emailValidation = emailRequestSchema.safeParse({ email: emailString });
+    const emailString =
+      rawEmail !== null && rawEmail !== undefined ? String(rawEmail) : "";
+
+    const emailValidation = emailRequestSchema.safeParse({
+      email: emailString,
+    });
     if (!emailValidation.success) {
       return NextResponse.json(
-        { error: emailValidation.error.issues[0].message }, 
-        { status: 400 }
+        { error: emailValidation.error.issues[0].message },
+        { status: 400 },
       );
     }
-    const validEmail = emailValidation.data.email;
+    const validEmail = emailValidation.data.email.trim().toLowerCase();
 
-    // 2. User Validation (Mandatory - Original Logic Intact)
     const stringBirthDate = String(birthDate);
-    if (!birthDate || stringBirthDate === 'undefined' || stringBirthDate.trim() === '') {
+    if (
+      !birthDate ||
+      stringBirthDate === "undefined" ||
+      stringBirthDate.trim() === ""
+    ) {
       return NextResponse.json(
-        { error: 'Please provide a valid birth date.' }, 
-        { status: 400 }
+        { error: "Please provide a valid birth date." },
+        { status: 400 },
       );
     }
 
     const userAge = calculateAge(stringBirthDate);
     if (userAge === null) {
       return NextResponse.json(
-        { error: 'Error: Your birth date is invalid or exceeds biological limits.' },
-        { status: 400 }
+        {
+          error:
+            "Error: Your birth date is invalid or exceeds biological limits.",
+        },
+        { status: 400 },
       );
     }
 
     let message = `You are ${userAge} years old.`;
 
-    // 3. Mother Validation (Optional - Original Logic Intact)
-    const stringMomDate = String(momBirthDate);
-    if (momBirthDate && stringMomDate !== 'undefined' && stringMomDate.trim() !== '') {
+    const stringMomDate =
+      momBirthDate !== null && momBirthDate !== undefined
+        ? String(momBirthDate).trim()
+        : "";
+    if (stringMomDate !== "" && stringMomDate !== "undefined") {
       const momAge = calculateAge(stringMomDate);
-      
+
       if (momAge === null) {
         return NextResponse.json(
-          { error: 'Error: Mother\'s birth date is invalid or exceeds biological limits.' },
-          { status: 400 }
+          {
+            error:
+              "Error: Mother's birth date is invalid or exceeds biological limits.",
+          },
+          { status: 400 },
         );
       }
 
       if (momAge < 16) {
         return NextResponse.json(
-          { error: 'Error: Mother cannot be younger than 16 years old.' },
-          { status: 400 }
+          { error: "Error: Mother cannot be younger than 16 years old." },
+          { status: 400 },
         );
       }
 
       message += ` Your mother is ${momAge} years old.`;
     }
 
-    // 4. Father Validation (Optional - Original Logic Intact)
-    const stringDadDate = String(dadBirthDate);
-    if (dadBirthDate && stringDadDate !== 'undefined' && stringDadDate.trim() !== '') {
+    const stringDadDate =
+      dadBirthDate !== null && dadBirthDate !== undefined
+        ? String(dadBirthDate).trim()
+        : "";
+    if (stringDadDate !== "" && stringDadDate !== "undefined") {
       const dadAge = calculateAge(stringDadDate);
-      
+
       if (dadAge === null) {
         return NextResponse.json(
-          { error: 'Error: Father\'s birth date is invalid or exceeds biological limits.' },
-          { status: 400 }
+          {
+            error:
+              "Error: Father's birth date is invalid or exceeds biological limits.",
+          },
+          { status: 400 },
         );
       }
 
       if (dadAge < 16) {
         return NextResponse.json(
-          { error: 'Error: Father cannot be younger than 16 years old.' },
-          { status: 400 }
+          { error: "Error: Father cannot be younger than 16 years old." },
+          { status: 400 },
         );
       }
-      
+
       message += ` Your father is ${dadAge} years old.`;
     }
 
-    // 5. Critical Database Insertion (Upsert) & Final Response
-    // Prisma expects JS Date objects for DateTime fields, so we instantiate new Date() here.
     const dbBirthDate = new Date(stringBirthDate);
-    const dbMomDate = (momBirthDate && stringMomDate.trim() !== '') ? new Date(stringMomDate) : null;
-    const dbDadDate = (dadBirthDate && stringDadDate.trim() !== '') ? new Date(stringDadDate) : null;
+    const dbMomDate =
+      stringMomDate !== "" && stringMomDate !== "undefined"
+        ? new Date(stringMomDate)
+        : null;
+    const dbDadDate =
+      stringDadDate !== "" && stringDadDate !== "undefined"
+        ? new Date(stringDadDate)
+        : null;
+    const now = new Date();
 
     try {
-      await prisma.ageRecord.upsert({
-        where: { email: validEmail },
-        update: {
-          birthDate: dbBirthDate,
-          momDate: dbMomDate,
-          dadDate: dbDadDate,
-        },
-        create: {
-          email: validEmail,
-          birthDate: dbBirthDate,
-          momDate: dbMomDate,
-          dadDate: dbDadDate,
-        },
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.upsert({
+          where: { email: validEmail },
+          create: {
+            email: validEmail,
+            updatedAt: null,
+          },
+          update: {
+            updatedAt: now,
+          },
+        });
+
+        await tx.ageRecord.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            birthDate: dbBirthDate,
+            momDate: dbMomDate,
+            dadDate: dbDadDate,
+            updatedAt: null,
+          },
+          update: {
+            birthDate: dbBirthDate,
+            momDate: dbMomDate,
+            dadDate: dbDadDate,
+            updatedAt: now,
+          },
+        });
       });
 
       return NextResponse.json({ message });
-
     } catch (dbError) {
-      console.error('CRITICAL: Failed to write age record to database:', dbError);
+      console.error(
+        "CRITICAL: Failed to write age record to database:",
+        dbError,
+      );
       return NextResponse.json(
-        { error: 'Error: Error writing to database. Please call the developer.' },
-        { status: 500 }
+        {
+          error: "Error: Error writing to database. Please call the developer.",
+        },
+        { status: 500 },
       );
     }
   } catch (error) {
-    // Failsafe catch block for malformed JSON parsing
-    return NextResponse.json({ error: 'Failed to process request.' }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to process request." },
+      { status: 500 },
+    );
   }
 }

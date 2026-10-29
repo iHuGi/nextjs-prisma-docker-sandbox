@@ -8,7 +8,9 @@
     "start": "next start",
     "test": "vitest run",
     "lint": "next lint",
-    "studio": "prisma studio --port 5555 --browser none"
+    "studio": "prisma studio --port 5555 --browser none",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "seed": "node --import dotenv/config prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
@@ -24,6 +26,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "dotenv": "^18.0.5",
+    "prettier": "^3.9.10",
     "prisma": "^7.10.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"
