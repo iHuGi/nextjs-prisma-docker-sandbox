@@ -1,0 +1,158 @@
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+  font-family: inherit;
+  color: var(--foreground, #ededed);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 16px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #a1a1a1;
+  margin-top: 4px;
+}
+
+.countrySelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.countrySelector select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  font: 500 12px inherit;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+  transition: all 0.2s;
+}
+
+.btnPrimary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background: #2563eb;
+}
+
+.btnLink {
+  border: none;
+  background: none;
+  color: #60a5fa;
+  padding: 0;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btnLink:hover {
+  text-decoration: underline;
+}
+
+.questionRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.questionRow:first-child {
+  border-top: none;
+}
+
+.questionText {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.questionMeta {
+  font-size: 12px;
+  color: #a1a1a1;
+  margin-top: 2px;
+}
+
+.emptyState {
+  padding: 32px;
+  text-align: center;
+  color: #737373;
+  font-size: 13px;
+}
+
+.addSectionBtn {
+  width: 100%;
+  padding: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #60a5fa;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.addSectionBtn:hover {
+  background: rgba(59, 130, 246, 0.05);
+}

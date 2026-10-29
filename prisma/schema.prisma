@@ -6,21 +6,121 @@ datasource db {
   provider = "postgresql"
 }
 
-// AgeRecord Table
-model AgeRecord {
+// ==========================================
+// 1. CORE CANDIDATE / USER TABLES (3NF + JSONB)
+// ==========================================
+
+model User {
   id        Int       @id @default(autoincrement())
   email     String    @unique
-  birthDate DateTime  @db.Date
-  momDate   DateTime? @db.Date
-  dadDate   DateTime? @db.Date
+  countryId Int?
   createdAt DateTime  @default(now())
+  updatedAt DateTime?
+
+  country    Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  ageRecord  AgeRecord?
+  clubRecord ClubRecord?
+  metadata   UserMetadata?
 }
 
-// ClubRecord Table
+model AgeRecord {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @unique
+  birthDate DateTime
+  momDate   DateTime?
+  dadDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model ClubRecord {
-  id          Int      @id @default(autoincrement())
-  email       String   @unique
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique
   name        String
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserMetadata {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @unique
+  customData Json      @default("{}")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// 2. ADMIN CONFIGURATION ENGINE PER COUNTRY
+// ==========================================
+
+model Country {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(5) // e.g., "PT", "GR", "US"
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  sections ConfigSection[]
+  users    User[]
+}
+
+model ConfigSection {
+  id         Int       @id @default(autoincrement())
+  countryId  Int
+  name       String
+  sortOrder  Int       @default(0)
+  isArchived Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime?
+
+  country   Country          @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  questions ConfigQuestion[]
+
+  @@unique([countryId, name])
+  @@index([countryId, sortOrder])
+}
+
+model ConfigQuestion {
+  id             Int      @id @default(autoincrement())
+  sectionId      Int
+  label          String
+  displayAs      String   @default("list")   // "dropdown" | "list" | "text"
+  answerType     String   @default("single") // "single" | "multi" | "bool" | "text"
+  isRequired     Boolean  @default(false)    // Questions are optional
+  confirmAiValue Boolean  @default(false)
+  preFilledText  String?
+  conditionJson  Json?
+  sortOrder      Int      @default(0)
+  isArchived     Boolean  @default(false)
+  updatedBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime?
+
+  section ConfigSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  answers ConfigAnswer[]
+
+  @@index([sectionId, sortOrder])
+}
+
+model ConfigAnswer {
+  id            Int       @id @default(autoincrement())
+  questionId    Int
+  label         String
+  isPreFilled   Boolean   @default(false) // BR29: Pre-filled option
+  isLocked      Boolean   @default(false) // BR16: Locked for Yes/No fixed answers
+  conditionJson Json?                     // BR18: Answer-level visibility condition
+  sortOrder     Int       @default(0)
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime?
+
+  question ConfigQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId, sortOrder])
 }

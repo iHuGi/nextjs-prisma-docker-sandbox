@@ -20,7 +20,9 @@
   font-size: 1rem;
   border: 1px solid #ccc;
   border-radius: 6px;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 }
 
 /* Focus state for better accessibility and UI polish (Adapted for green theme) */
@@ -40,7 +42,9 @@
   color: #fff;
   border: none;
   border-radius: 6px;
-  transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    transform 0.1s ease-in-out;
   margin-top: 0.5rem;
 }
 

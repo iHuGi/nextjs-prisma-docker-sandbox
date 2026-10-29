@@ -1,0 +1,114 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  color: #f4f4f5;
+  font-family: inherit;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 20px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #a1a1a1;
+  margin: 0;
+}
+
+.card {
+  background-color: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: #f4f4f5;
+  margin: 0 0 16px 0;
+}
+
+.fieldGroup {
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #f4f4f5;
+}
+
+.required {
+  color: #f87171;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: #fff;
+  fontsize: 13px;
+  outline: none;
+}
+
+.select option {
+  background-color: #18181b;
+  color: #fff;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  transition: all 0.2s;
+}
+
+.btnPrimary {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background-color: #1d4ed8;
+}
+
+.messageBox {
+  padding: 12px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 40px;
+  color: #a1a1a1;
+  font-size: 14px;
+}

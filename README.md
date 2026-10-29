@@ -4,12 +4,12 @@ A lightweight experimental project built to evaluate and understand **Next.js (A
 
 ## 🛠️ Tech Stack
 
-* **Framework:** Next.js (App Router)
-* **Language:** TypeScript (Strict Type Safety)
-* **Database & ORM:** PostgreSQL, Prisma 7 (with `@prisma/adapter-pg`)
-* **Runtime & Environment:** Node.js (LTS), Docker & Docker Compose
-* **Styling & UI:** CSS Modules (Scoped), React Hooks (`useState`), Custom Hooks for business logic
-* **Architecture:** Feature-based modular design separating logic (Hooks), UI (Components), and Routing (Pages).
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript (Strict Type Safety)
+- **Database & ORM:** PostgreSQL, Prisma 7 (with `@prisma/adapter-pg`)
+- **Runtime & Environment:** Node.js (LTS), Docker & Docker Compose
+- **Styling & UI:** CSS Modules (Scoped), React Hooks (`useState`), Custom Hooks for business logic
+- **Architecture:** Feature-based modular design separating logic (Hooks), UI (Components), and Routing (Pages).
 
 ## 📁 Project Structure
 
@@ -58,10 +58,10 @@ prisma.config.ts                    # Prisma 7 configuration file (Datasource & 
 
 To support the PostgreSQL adapter configuration required by **Prisma 7**, the following packages were added to the project:
 
-* **`@prisma/adapter-pg`** — Official Prisma driver adapter for PostgreSQL.
-* **`pg`** — Native PostgreSQL client for Node.js.
-* **`@types/pg`** — TypeScript definitions for the `pg` client.
-* **`dotenv`** — Ensures local WSL environments can seamlessly load `.env` variables into `prisma.config.ts` during CLI execution.
+- **`@prisma/adapter-pg`** — Official Prisma driver adapter for PostgreSQL.
+- **`pg`** — Native PostgreSQL client for Node.js.
+- **`@types/pg`** — TypeScript definitions for the `pg` client.
+- **`dotenv`** — Ensures local WSL environments can seamlessly load `.env` variables into `prisma.config.ts` during CLI execution.
 
 ## 🐳 Running with Docker
 
@@ -75,7 +75,7 @@ docker compose up --build --no-cache
 ```
 
 2. **Access the application:**
-Open your browser and navigate to: `http://localhost:3000`
+   Open your browser and navigate to: `http://localhost:3000`
 3. **Check container logs (useful for debugging backend/API errors):**
 
 ```bash
@@ -94,29 +94,29 @@ docker compose down
 
 Ensure your Docker containers are running (`docker compose up -d`) so that port `5432` is exposed to your host machine before running local database commands. Thanks to `dotenv`, your local Prisma CLI will automatically read the `localhost` mapping from your root `.env` file.
 
-* **Generate Prisma Client (Update types after schema changes):**
+- **Generate Prisma Client (Update types after schema changes):**
 
 ```bash
 npx prisma generate
 
 ```
 
-* **Push schema changes directly to the database:**
+- **Push schema changes directly to the database:**
 
 ```bash
 npx prisma db push
 
 ```
 
-* **Open Prisma Studio (Visual DB Inspector):**
-Launch the studio using the predefined NPM script to prevent WSL port-forwarding issues (forces port 5555):
+- **Open Prisma Studio (Visual DB Inspector):**
+  Launch the studio using the predefined NPM script to prevent WSL port-forwarding issues (forces port 5555):
 
 ```bash
 npm run studio
 
 ```
 
-* **Access the PostgreSQL container shell:**
+- **Access the PostgreSQL container shell:**
 
 ```bash
 docker compose exec db psql -U admin -d app_db
@@ -125,14 +125,13 @@ docker compose exec db psql -U admin -d app_db
 
 > ⚠️ **Database Requirement for the Results Module:**
 > To successfully execute the `/api/results` endpoint and view consolidated records, the underlying PostgreSQL database must have the custom PL/pgSQL function created beforehand:
+>
 > ```sql
 > CREATE OR REPLACE FUNCTION get_full_user_summary(email_input TEXT)
 > RETURNS TABLE (...) -- defined according to your consolidated table structure
 > ...
-> 
+>
 > ```
-> 
-> 
 
 ## ⚙️ Prerequisites & Local Setup
 
@@ -145,20 +144,20 @@ npm install
 
 ## 🏗️ Key Implementation Notes
 
-* **App Router Paradigm:** Uses directory-based routing (`app/`) for server/client component boundaries.
-* **Feature-Based Modularity:** Business logic is abstracted into custom hooks and UI is isolated in dedicated components.
-* **Strongly Typed Architecture:** Type safety enforced across forms using modern React event typing (`React.SyntheticEvent`).
-* **Prisma 7 Configuration:** Relies on `prisma.config.ts` for database connection management and `@prisma/adapter-pg` for raw query handling (`prisma.$queryRaw`).
-* **Persistent Storage:** Configured with Docker volumes to ensure database state survives container restarts.
+- **App Router Paradigm:** Uses directory-based routing (`app/`) for server/client component boundaries.
+- **Feature-Based Modularity:** Business logic is abstracted into custom hooks and UI is isolated in dedicated components.
+- **Strongly Typed Architecture:** Type safety enforced across forms using modern React event typing (`React.SyntheticEvent`).
+- **Prisma 7 Configuration:** Relies on `prisma.config.ts` for database connection management and `@prisma/adapter-pg` for raw query handling (`prisma.$queryRaw`).
+- **Persistent Storage:** Configured with Docker volumes to ensure database state survives container restarts.
 
 ## 🛡️ Data Integrity & Security Architecture
 
 The application implements a robust, defensive data submission pipeline designed around strict integrity constraints and modern validation patterns:
 
-* **Email-Anchored Database Upserts (`Prisma`):** Both `AgeRecord` and `ClubRecord` database models enforce a strict unique constraint on the `email` column (`@unique`). Backend mutation logic utilizes Prisma's `upsert` operations, ensuring that user submissions seamlessly update existing records or create new ones without throwing primary key violations or generating data duplicates.
-* **Rigorous Input Validation (`Zod`):** Incoming API requests are intercepted and sanitized using Zod schemas. Manual defensive checks are replaced by strongly-typed validation rules (such as email formats and strict type-casting from `unknown`), rejecting malformed payloads with descriptive error codes (`400 Bad Request`) before touching the persistence layer.
-* **Strict Type Safety (.NET-Inspired Interface Pattern):** API routes explicitly declare request body interfaces with `unknown` types, enforcing deliberate type-narrowing and runtime safety guards prior to executing business logic or interacting with the database client.
-* **Optimized Database Layer (Stored Functions & B-Tree Indexes):** High-performance backend routines leverage native PostgreSQL stored functions combined with custom B-tree indexes featuring `INCLUDE` clauses to minimize heap fetches and accelerate data retrieval.
+- **Email-Anchored Database Upserts (`Prisma`):** Both `AgeRecord` and `ClubRecord` database models enforce a strict unique constraint on the `email` column (`@unique`). Backend mutation logic utilizes Prisma's `upsert` operations, ensuring that user submissions seamlessly update existing records or create new ones without throwing primary key violations or generating data duplicates.
+- **Rigorous Input Validation (`Zod`):** Incoming API requests are intercepted and sanitized using Zod schemas. Manual defensive checks are replaced by strongly-typed validation rules (such as email formats and strict type-casting from `unknown`), rejecting malformed payloads with descriptive error codes (`400 Bad Request`) before touching the persistence layer.
+- **Strict Type Safety (.NET-Inspired Interface Pattern):** API routes explicitly declare request body interfaces with `unknown` types, enforcing deliberate type-narrowing and runtime safety guards prior to executing business logic or interacting with the database client.
+- **Optimized Database Layer (Stored Functions & B-Tree Indexes):** High-performance backend routines leverage native PostgreSQL stored functions combined with custom B-tree indexes featuring `INCLUDE` clauses to minimize heap fetches and accelerate data retrieval.
 
 ## ⚠️ Troubleshooting & Common Pitfalls
 
@@ -166,8 +165,8 @@ The application implements a robust, defensive data submission pipeline designed
 
 If you encounter connection refusals or timeouts when attempting to launch Prisma Studio from within the WSL terminal while running a containerized PostgreSQL instance, keep the following architectural constraints in mind:
 
-* **Container Isolation:** The database container (`postgres_db`) runs on an isolated internal Docker bridge network. Ensure your local `.env` configuration file points to the correct host and mapped port (`localhost:5432`) when querying or running studio tools from the host machine outside the container network.
-* **Port Conflicts & Zombie Processes:** If the Prisma Studio port gets stuck or fails to bind due to lingering Node processes in the WSL environment, forcefully clear the port before restarting:
+- **Container Isolation:** The database container (`postgres_db`) runs on an isolated internal Docker bridge network. Ensure your local `.env` configuration file points to the correct host and mapped port (`localhost:5432`) when querying or running studio tools from the host machine outside the container network.
+- **Port Conflicts & Zombie Processes:** If the Prisma Studio port gets stuck or fails to bind due to lingering Node processes in the WSL environment, forcefully clear the port before restarting:
 
 ```bash
 fuser -k 5555/tcp

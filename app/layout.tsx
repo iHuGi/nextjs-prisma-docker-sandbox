@@ -28,16 +28,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       {/* Flexbox layout ensures the footer always sticks to the bottom of the screen */}
-      <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', margin: 0 }}>
-        
+      <body className="bg-black text-zinc-100 min-h-screen flex flex-col m-0">
         {/* Main page content wrapper */}
-        <div style={{ flex: 1 }}>
-          {children}
-        </div>
+        <div style={{ flex: 1 }}>{children}</div>
 
         {/* Centralized global footer component */}
         <Footer />
-        
       </body>
     </html>
   );
