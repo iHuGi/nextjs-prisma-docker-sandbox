@@ -2,20 +2,39 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 
+/**
+ * ============================================================================
+ * /api/results Route Handler
+ * ============================================================================
+ * Purpose: Handles querying consolidated user summary data via PostgreSQL
+ * Stored Functions (GET for pagination, POST for specific email lookup).
+ * ============================================================================
+ */
+
 // 1. Raw Request Body Interface for single email lookup (.NET DTO style)
 interface RawResultsRequestBody {
   email?: unknown;
 }
 
-// 2. Strict Zod Validation Schema for POST
+// 2. Strict Zod Validation Schema for POST request body
 const resultsSchema = z.object({
-  email: z.string().trim().toLowerCase().pipe(z.email("Invalid email format.")),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((val) => val.includes("@"), {
+      message: "Invalid email format. Email must contain an @ symbol.",
+    }),
 });
 
 // 3. Strongly-typed PostgreSQL Stored Function return structures
 interface UserSummaryRow {
   user_id: number;
   email: string;
+  identification_number: bigint | string;
+  phone_number: bigint | string;
+  country_code: string | null;
+  country_name: string | null;
   birth_date: Date | null;
   mom_date: Date | null;
   dad_date: Date | null;
@@ -52,8 +71,14 @@ export async function GET(request: Request) {
     const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
     const totalPages = Math.ceil(totalCount / limit) || 1;
 
-    // Strip the window function total_count from individual row objects before serializing
-    const items = rows.map(({ total_count, ...user }) => user);
+    // Strip total_count and safely serialize any potential BigInt values
+    const items = rows.map(({ total_count, ...user }) => {
+      return JSON.parse(
+        JSON.stringify(user, (_key, value) =>
+          typeof value === "bigint" ? value.toString() : value,
+        ),
+      );
+    });
 
     return NextResponse.json({
       page,
@@ -73,7 +98,7 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/results
- * Calls PostgreSQL Stored Function get_full_user_summary(p_email)
+ * Calls PostgreSQL Stored Function get_user_consolidated_summary(p_email)
  */
 export async function POST(request: Request) {
   try {
@@ -92,7 +117,7 @@ export async function POST(request: Request) {
 
     try {
       const result = await prisma.$queryRaw<UserSummaryRow[]>`
-        SELECT * FROM get_full_user_summary(${email});
+        SELECT * FROM get_user_consolidated_summary(${email});
       `;
 
       if (!result || result.length === 0) {
@@ -105,9 +130,16 @@ export async function POST(request: Request) {
         );
       }
 
+      // Serialize BigInt safely for JSON transport
+      const serializedData = JSON.parse(
+        JSON.stringify(result[0], (_key, value) =>
+          typeof value === "bigint" ? value.toString() : value,
+        ),
+      );
+
       return NextResponse.json({
         found: true,
-        data: result[0],
+        data: serializedData,
       });
     } catch (dbError) {
       console.error("CRITICAL: Failed to execute stored function:", dbError);

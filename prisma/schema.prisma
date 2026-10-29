@@ -11,13 +11,15 @@ datasource db {
 // ==========================================
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  countryId Int?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime?
+  id                   Int      @id @default(autoincrement())
+  email                String   @unique
+  identificationNumber BigInt
+  phoneNumber          BigInt
+  countryId            Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime?
 
-  country    Country?      @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  country    Country       @relation(fields: [countryId], references: [id], onDelete: Restrict)
   ageRecord  AgeRecord?
   clubRecord ClubRecord?
   metadata   UserMetadata?
@@ -87,19 +89,19 @@ model ConfigSection {
 }
 
 model ConfigQuestion {
-  id             Int      @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   sectionId      Int
   label          String
-  displayAs      String   @default("list")   // "dropdown" | "list" | "text"
-  answerType     String   @default("single") // "single" | "multi" | "bool" | "text"
-  isRequired     Boolean  @default(false)    // Questions are optional
-  confirmAiValue Boolean  @default(false)
+  displayAs      String    @default("list")   // "dropdown" | "list" | "text"
+  answerType     String    @default("single") // "single" | "multi" | "bool" | "text"
+  isRequired     Boolean   @default(false)    // Questions are optional by default
+  confirmAiValue Boolean   @default(false)
   preFilledText  String?
   conditionJson  Json?
-  sortOrder      Int      @default(0)
-  isArchived     Boolean  @default(false)
+  sortOrder      Int       @default(0)
+  isArchived     Boolean   @default(false)
   updatedBy      String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
   updatedAt      DateTime?
 
   section ConfigSection  @relation(fields: [sectionId], references: [id], onDelete: Cascade)

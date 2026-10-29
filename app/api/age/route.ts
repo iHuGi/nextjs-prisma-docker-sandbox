@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../lib/prisma";
 import { z } from "zod";
 
+/**
+ * ============================================================================
+ * POST /api/age
+ * ============================================================================
+ * Purpose: Validates biological age constraints and persists an AgeRecord.
+ * Architectural Note: Requires an existing parent User record in the database.
+ * Implicit user creation is strictly disabled.
+ * ============================================================================
+ */
+
+/**
+ * Helper: Computes chronological age in years from an ISO date string.
+ * Returns null if the date is malformed, in the future, or exceeds 120 years.
+ */
 function calculateAge(dateString: string): number | null {
   if (!dateString) return null;
 
@@ -28,6 +42,7 @@ function calculateAge(dateString: string): number | null {
   return age;
 }
 
+// 1. Defensive request body contract
 interface AgeRequestBody {
   email?: unknown;
   birthDate?: unknown;
@@ -35,8 +50,11 @@ interface AgeRequestBody {
   dadBirthDate?: unknown;
 }
 
+// 2. Email validation schema requiring @ symbol
 const emailRequestSchema = z.object({
-  email: z.string().email("Invalid email format."),
+  email: z.string().refine((val) => val.includes("@"), {
+    message: "Invalid email format. Email must contain an @ symbol.",
+  }),
 });
 
 export async function POST(request: Request) {
@@ -44,6 +62,7 @@ export async function POST(request: Request) {
     const body: AgeRequestBody = await request.json();
     const { email, birthDate, momBirthDate, dadBirthDate } = body;
 
+    // 3. Sanitize and validate email parameter
     const rawEmail = email;
     const emailString =
       rawEmail !== null && rawEmail !== undefined ? String(rawEmail) : "";
@@ -59,6 +78,7 @@ export async function POST(request: Request) {
     }
     const validEmail = emailValidation.data.email.trim().toLowerCase();
 
+    // 4. Validate primary candidate birth date
     const stringBirthDate = String(birthDate);
     if (
       !birthDate ||
@@ -84,6 +104,7 @@ export async function POST(request: Request) {
 
     let message = `You are ${userAge} years old.`;
 
+    // 5. Validate optional mother's birth date
     const stringMomDate =
       momBirthDate !== null && momBirthDate !== undefined
         ? String(momBirthDate).trim()
@@ -111,6 +132,7 @@ export async function POST(request: Request) {
       message += ` Your mother is ${momAge} years old.`;
     }
 
+    // 6. Validate optional father's birth date
     const stringDadDate =
       dadBirthDate !== null && dadBirthDate !== undefined
         ? String(dadBirthDate).trim()
@@ -138,6 +160,21 @@ export async function POST(request: Request) {
       message += ` Your father is ${dadAge} years old.`;
     }
 
+    // 7. Verify parent User record existence prior to persistence
+    const existingUser = await prisma.user.findUnique({
+      where: { email: validEmail },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json(
+        {
+          error:
+            "User profile not found for this email. Please select a valid user or consult existing profiles in the Users menu.",
+        },
+        { status: 404 },
+      );
+    }
+
     const dbBirthDate = new Date(stringBirthDate);
     const dbMomDate =
       stringMomDate !== "" && stringMomDate !== "undefined"
@@ -149,23 +186,18 @@ export async function POST(request: Request) {
         : null;
     const now = new Date();
 
+    // 8. Atomic transaction: update parent User timestamp and upsert AgeRecord
     try {
       await prisma.$transaction(async (tx) => {
-        const user = await tx.user.upsert({
-          where: { email: validEmail },
-          create: {
-            email: validEmail,
-            updatedAt: null,
-          },
-          update: {
-            updatedAt: now,
-          },
+        await tx.user.update({
+          where: { id: existingUser.id },
+          data: { updatedAt: now },
         });
 
         await tx.ageRecord.upsert({
-          where: { userId: user.id },
+          where: { userId: existingUser.id },
           create: {
-            userId: user.id,
+            userId: existingUser.id,
             birthDate: dbBirthDate,
             momDate: dbMomDate,
             dadDate: dbDadDate,
