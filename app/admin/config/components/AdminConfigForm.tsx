@@ -70,6 +70,18 @@ export default function AdminConfigForm() {
   const [conditionParentId, setConditionParentId] = useState<string>("");
   const [conditionExpectedValue, setConditionExpectedValue] = useState("");
 
+  // Collapsed Sections state map (keyed by section ID)
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<number, boolean>
+  >({});
+
+  const toggleSectionCollapse = (sectionId: number) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
+
   // --- 1. Fetch Countries from Database on Mount ---
   useEffect(() => {
     async function loadCountries() {
@@ -116,6 +128,7 @@ export default function AdminConfigForm() {
 
   useEffect(() => {
     if (selectedCountry && selectedCountry.length === 2) {
+      setCollapsedSections({});
       fetchConfig(selectedCountry);
     }
   }, [selectedCountry]);
@@ -206,6 +219,10 @@ export default function AdminConfigForm() {
       const data = await res.json();
       if (data.success) {
         setIsQuestionModalOpen(false);
+        setCollapsedSections((prev) => ({
+          ...prev,
+          [activeSectionId]: false,
+        }));
         fetchConfig(selectedCountry);
       } else {
         alert("Error saving question: " + JSON.stringify(data.error));
@@ -501,31 +518,63 @@ export default function AdminConfigForm() {
 
             if (!isSecMatchedTrashFilter) return null;
 
+            const isCollapsed = !!collapsedSections[sec.id];
+
             return (
               <div
                 key={sec.id}
                 className={styles.card}
                 style={{ opacity: sec.isArchived ? 0.65 : 1 }}
               >
-                <div className={styles.sectionHeader}>
-                  <h3 className={styles.sectionTitle}>
-                    {sec.name}{" "}
+                <div
+                  className={styles.sectionHeader}
+                  style={{
+                    marginBottom: isCollapsed ? 0 : undefined,
+                    borderBottom: isCollapsed ? "none" : undefined,
+                    paddingBottom: isCollapsed ? 0 : undefined,
+                  }}
+                >
+                  {/* Clickable Section Title for Collapsing / Expanding */}
+                  <h3
+                    className={styles.sectionTitle}
+                    onClick={() => toggleSectionCollapse(sec.id)}
+                    style={{
+                      cursor: "pointer",
+                      userSelect: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "#a1a1aa" }}>
+                      {isCollapsed ? "▶" : "▼"}
+                    </span>
+                    <span>{sec.name}</span>
                     {sec.isArchived && (
                       <span
                         style={{
                           fontSize: "11px",
                           color: "#f87171",
-                          marginLeft: "6px",
+                          marginLeft: "4px",
                         }}
                       >
                         [Archived Section]
                       </span>
-                    )}{" "}
+                    )}
                     <small style={{ color: "#a1a1a1", fontWeight: 400 }}>
                       ({displayedQuestions.length} questions)
                     </small>
                   </h3>
+
                   <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.btn}
+                      onClick={() => toggleSectionCollapse(sec.id)}
+                    >
+                      {isCollapsed ? "Expand" : "Collapse"}
+                    </button>
+
                     {!sec.isArchived && !showTrash ? (
                       <>
                         <button
@@ -566,114 +615,120 @@ export default function AdminConfigForm() {
                   </div>
                 </div>
 
-                {displayedQuestions.length === 0 ? (
-                  <div className={styles.emptyState}>No items here.</div>
-                ) : (
-                  displayedQuestions.map((q, index) => (
-                    <div key={q.id} className={styles.questionRow}>
-                      <div>
-                        <div className={styles.questionText}>
-                          {q.label}{" "}
-                          {q.conditionJson && (
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                color: "#60a5fa",
-                                background: "rgba(96,165,250,0.1)",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                marginLeft: "6px",
-                              }}
-                            >
-                              Conditional
-                            </span>
-                          )}
+                {/* Collapsible Section Questions List */}
+                {!isCollapsed &&
+                  (displayedQuestions.length === 0 ? (
+                    <div className={styles.emptyState}>No items here.</div>
+                  ) : (
+                    displayedQuestions.map((q, index) => (
+                      <div key={q.id} className={styles.questionRow}>
+                        <div>
+                          <div className={styles.questionText}>
+                            {q.label}{" "}
+                            {q.conditionJson && (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "#60a5fa",
+                                  background: "rgba(96,165,250,0.1)",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  marginLeft: "6px",
+                                }}
+                              >
+                                Conditional
+                              </span>
+                            )}
+                          </div>
+                          <div className={styles.questionMeta}>
+                            Type: {q.answerType} | Display: {q.displayAs} |{" "}
+                            {q.answerType === "bool"
+                              ? "Answers: Yes, No"
+                              : q.answerType === "text"
+                                ? "Free Text"
+                                : `Answers: ${q.answers.map((a) => a.label).join(", ")}`}{" "}
+                            | {q.isRequired ? "Required" : "Optional"}
+                          </div>
                         </div>
-                        <div className={styles.questionMeta}>
-                          Type: {q.answerType} | Display: {q.displayAs} |{" "}
-                          {q.answerType === "bool"
-                            ? "Answers: Yes, No"
-                            : q.answerType === "text"
-                              ? "Free Text"
-                              : `Answers: ${q.answers.map((a) => a.label).join(", ")}`}{" "}
-                          | {q.isRequired ? "Required" : "Optional"}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "6px",
-                          alignItems: "center",
-                        }}
-                      >
-                        {!showTrash && !q.isArchived ? (
-                          <>
-                            <button
-                              className={styles.btnLink}
-                              disabled={index === 0}
-                              onClick={() =>
-                                handleMoveQuestion(
-                                  sec.id,
-                                  displayedQuestions,
-                                  index,
-                                  "up",
-                                )
-                              }
-                              style={{ opacity: index === 0 ? 0.3 : 1 }}
-                            >
-                              ▲ Up
-                            </button>
-                            <button
-                              className={styles.btnLink}
-                              disabled={index === displayedQuestions.length - 1}
-                              onClick={() =>
-                                handleMoveQuestion(
-                                  sec.id,
-                                  displayedQuestions,
-                                  index,
-                                  "down",
-                                )
-                              }
-                              style={{
-                                opacity:
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "6px",
+                            alignItems: "center",
+                          }}
+                        >
+                          {!showTrash && !q.isArchived ? (
+                            <>
+                              <button
+                                className={styles.btnLink}
+                                disabled={index === 0}
+                                onClick={() =>
+                                  handleMoveQuestion(
+                                    sec.id,
+                                    displayedQuestions,
+                                    index,
+                                    "up",
+                                  )
+                                }
+                                style={{ opacity: index === 0 ? 0.3 : 1 }}
+                              >
+                                ▲ Up
+                              </button>
+                              <button
+                                className={styles.btnLink}
+                                disabled={
                                   index === displayedQuestions.length - 1
-                                    ? 0.3
-                                    : 1,
-                              }}
-                            >
-                              ▼ Down
-                            </button>
+                                }
+                                onClick={() =>
+                                  handleMoveQuestion(
+                                    sec.id,
+                                    displayedQuestions,
+                                    index,
+                                    "down",
+                                  )
+                                }
+                                style={{
+                                  opacity:
+                                    index === displayedQuestions.length - 1
+                                      ? 0.3
+                                      : 1,
+                                }}
+                              >
+                                ▼ Down
+                              </button>
+                              <button
+                                className={styles.btnLink}
+                                onClick={() =>
+                                  handleOpenEditQuestion(sec.id, q)
+                                }
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className={styles.btnLink}
+                                style={{ color: "#f87171" }}
+                                onClick={() =>
+                                  handleToggleArchiveQuestion(sec.id, q, true)
+                                }
+                              >
+                                Archive
+                              </button>
+                            </>
+                          ) : q.isArchived ? (
                             <button
                               className={styles.btnLink}
-                              onClick={() => handleOpenEditQuestion(sec.id, q)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className={styles.btnLink}
-                              style={{ color: "#f87171" }}
+                              style={{ color: "#34d399" }}
                               onClick={() =>
-                                handleToggleArchiveQuestion(sec.id, q, true)
+                                handleToggleArchiveQuestion(sec.id, q, false)
                               }
                             >
-                              Archive
+                              Restore Question
                             </button>
-                          </>
-                        ) : q.isArchived ? (
-                          <button
-                            className={styles.btnLink}
-                            style={{ color: "#34d399" }}
-                            onClick={() =>
-                              handleToggleArchiveQuestion(sec.id, q, false)
-                            }
-                          >
-                            Restore Question
-                          </button>
-                        ) : null}
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  ))}
               </div>
             );
           })
@@ -689,16 +744,24 @@ export default function AdminConfigForm() {
         )}
       </section>
 
-      {/* --- SECTION MODAL --- */}
+      {/* --- SECTION MODAL (Closes strictly via X button or Cancel) --- */}
       {isSectionModalOpen && (
-        <div
-          style={modalOverlayStyle}
-          onClick={() => setIsSectionModalOpen(false)}
-        >
-          <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0, marginBottom: "16px" }}>
-              {editingSectionId ? "Rename Section" : "Add Section"}
-            </h3>
+        <div style={modalOverlayStyle}>
+          <div style={modalContentStyle}>
+            <div style={modalHeaderStyle}>
+              <h3 style={{ margin: 0 }}>
+                {editingSectionId ? "Rename Section" : "Add Section"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsSectionModalOpen(false)}
+                style={closeButtonStyle}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+            </div>
+
             <div style={{ marginBottom: "16px" }}>
               <label
                 style={{
@@ -744,16 +807,23 @@ export default function AdminConfigForm() {
         </div>
       )}
 
-      {/* --- QUESTION MODAL (Create & Edit + DAG Condition) --- */}
+      {/* --- QUESTION MODAL (Closes strictly via X button or Cancel) --- */}
       {isQuestionModalOpen && (
-        <div
-          style={modalOverlayStyle}
-          onClick={() => setIsQuestionModalOpen(false)}
-        >
-          <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0, marginBottom: "16px" }}>
-              {editingQuestionId ? "Edit Question" : "Add Question"}
-            </h3>
+        <div style={modalOverlayStyle}>
+          <div style={modalContentStyle}>
+            <div style={modalHeaderStyle}>
+              <h3 style={{ margin: 0 }}>
+                {editingQuestionId ? "Edit Question" : "Add Question"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsQuestionModalOpen(false)}
+                style={closeButtonStyle}
+                aria-label="Close modal"
+              >
+                ✕
+              </button>
+            </div>
 
             <div style={{ marginBottom: "12px" }}>
               <label
@@ -1028,6 +1098,28 @@ const modalContentStyle: React.CSSProperties = {
   maxWidth: "480px",
   color: "#f4f4f5",
   boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5)",
+};
+
+const modalHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "16px",
+};
+
+const closeButtonStyle: React.CSSProperties = {
+  background: "transparent",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  borderRadius: "6px",
+  color: "#a1a1aa",
+  width: "28px",
+  height: "28px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  fontSize: "14px",
+  lineHeight: 1,
 };
 
 const inputStyle: React.CSSProperties = {
