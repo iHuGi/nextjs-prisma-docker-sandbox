@@ -1,172 +1,197 @@
-# Next.js App Router Sandbox
+# Next.js Recruitment & Configuration Engine (App Router Sandbox)
 
-A lightweight experimental project built to evaluate and understand **Next.js (App Router)** architecture, strongly-typed server-side API routes (`TypeScript`), feature-based modularity, persistent database integration via **Prisma 7**, and containerized deployment workflows using **Docker**.
+An enterprise-grade experimental platform built to evaluate **Next.js 16 (App Router)** architecture, strongly-typed server-side API controllers (`TypeScript`), **3NF relational modeling** paired with **JSONB** document storage in **PostgreSQL**, **Prisma 7** (`@prisma/adapter-pg`), automated integration testing via **Vitest**, and containerized workflows using **Docker**.
+
+---
+
+## 🧠 Engineering Philosophy & AI Orchestration (Gemini Argon)
+
+This application was developed as an advanced engineering benchmark to evaluate **Google's Gemini Argon** model capabilities. Throughout the lifecycle of this project, **I acted as the Lead Software & Data Architect**—designing the relational schema, defining domain boundaries, orchestrating the model's implementation phases, and enforcing strict code reviews.
+
+While Gemini Argon accelerated boilerplate generation and iterative refactoring, every architectural decision and root-cause debugging session was governed by two non-negotiable engineering principles:
+
+1. **Database Integrity & ACID Governance First:**
+   Frontend visual glitches can be patched at any stage of the software lifecycle with zero data loss. Conversely, a poorly normalized database schema or weak referential integrity is a recipe for disaster once data is persisted. All state mutations in this engine prioritize **3NF normalization**, explicit foreign key constraints, atomic `$transaction` blocks, and strict pre-validation before touching disk.
+2. **Backend JSON Contracts as First-Class Citizens:**
+   Data payloads crossing the network boundary between the Next.js API layer and React client components must be strictly typed and sanitized via explicit DTO interfaces.
+   * *Real-World Debugging Case Study (`BigInt` Serialization):* When migrating `User` identification and phone numbers to native 64-bit integers (`BigInt`), an unmapped endpoint (`/api/admin/users`) attempted to pass raw Prisma `BigInt` primitives directly into `NextResponse.json()`. Because the native V8 `JSON.stringify` engine does not implicitly serialize `BigInt`, the route failed silently in the UI, breaking the candidate dropdown hydration. Debugging and isolating this failure underscored why **every outbound backend payload must be explicitly sanitized and cast through strict DTO contracts** before serialization.
+
+---
+
+## 🚀 Upcoming Engineering Milestone: Relational Email Engine (SMTP/IMAP)
+
+The next architectural phase—designed by me and scheduled for implementation under strict review—is a persistent, bidirectional **Email Communication Engine** integrated directly with Gmail (`SMTP` / `IMAP`) via `.env` credentials (zero bloatware configuration screens):
+
+- **Outbound Persistence (`SentEmail`):** Dispatch emails directly to registered platform users (`User` table lookup), storing the subject, body, target `userId`, and RFC 5322 `Message-ID`.
+- **Inbound Synchronization & Filtering (`ReceivedEmail`):** Poll and ingest incoming emails exclusively from verified addresses registered in the `User` table, featuring mutable `isRead` boolean flags (`Read` / `Unread` filters).
+- **Bidirectional Relational Threading (Cross-Referenced Nullable FKs):**
+  - When a user replies to an outbound email, the engine inspects the `In-Reply-To` header and links `ReceivedEmail.sentEmailId -> SentEmail.id`.
+  - When an unprompted inbound email arrives from a registered user (`sentEmailId = NULL`), clicking the record routes to the dispatch view, pre-fills the recipient context, and persists the reply with `SentEmail.receivedEmailId -> ReceivedEmail.id`.
+
+---
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js (App Router)
-- **Language:** TypeScript (Strict Type Safety)
-- **Database & ORM:** PostgreSQL, Prisma 7 (with `@prisma/adapter-pg`)
-- **Runtime & Environment:** Node.js (LTS), Docker & Docker Compose
-- **Styling & UI:** CSS Modules (Scoped), React Hooks (`useState`), Custom Hooks for business logic
-- **Architecture:** Feature-based modular design separating logic (Hooks), UI (Components), and Routing (Pages).
+- **Framework:** Next.js 16 (App Router, Turbopack)
+- **Language:** TypeScript (Strict Type Safety & `.NET`-inspired DTO Interfaces)
+- **Database & ORM:** PostgreSQL, Prisma 7 (`@prisma/adapter-pg`, `pg` connection pooling)
+- **Validation:** Zod (Runtime schema validation & payload sanitization)
+- **Testing:** Vitest (End-to-end API & PostgreSQL integration test suite)
+- **Styling & UI:** Scoped CSS Modules, Dark-Mode Design System, Collapsible DAG Sections, Controlled Modals
+- **Runtime & Deployment:** Node.js 22 (LTS), Docker & Docker Compose
+
+---
 
 ## 📁 Project Structure
 
 ```text
-app/
-├── api/
+├── __tests__/
+│   └── integration.test.ts             # Vitest integration suite against live PostgreSQL
+├── app/
+│   ├── admin/
+│   │   └── config/
+│   │       ├── AdminConfig.module.css  # Scoped dark-theme styles for Admin Engine
+│   │       ├── AdminConfigForm.tsx     # Dynamic Section/Question CRUD, DAG builder & Trash view
+│   │       └── page.tsx                # Admin Configuration route entry
 │   ├── age/
-│   │   └── route.ts                # Strictly typed backend endpoint for age calculation
+│   │   ├── components/                 # Age calculator UI & scoped CSS
+│   │   ├── hooks/                      # Custom hook (useAgeCalculator)
+│   │   └── page.tsx                    # Age validation module
+│   ├── api/
+│   │   ├── admin/
+│   │   │   ├── config/route.ts         # Controller for 3NF Sections, Questions, DAGs & JSONB submit
+│   │   │   ├── countries/route.ts      # Returns master Country records (id, code, name)
+│   │   │   └── users/route.ts          # Serialized User directory lookup for simulators
+│   │   ├── age/route.ts                # Biological age validation & transactional AgeRecord upsert
+│   │   ├── club/route.ts               # Club business rules & transactional ClubRecord upsert
+│   │   ├── metadata/route.ts           # Unstructured JSONB upsert into UserMetadata
+│   │   ├── results/route.ts            # Executes PL/pgSQL Stored Functions (single & paginated)
+│   │   └── users/route.ts              # Master User CRUD (BigInt validation & Country FK binding)
+│   ├── candidates/
+│   │   └── apply/
+│   │       ├── CandidateApply.module.css
+│   │       ├── CandidateApplyForm.tsx  # Dynamic DAG form simulator & JSONB response hydration
+│   │       └── page.tsx                # Candidate Simulator route entry
 │   ├── club/
-│   │   └── route.ts                # Strictly typed backend endpoint for football club validation
-│   └── results/
-│       └── route.ts                # Backend endpoint executing the PostgreSQL stored function
-├── age/
+│   │   ├── components/                 # Club validator UI & scoped CSS
+│   │   ├── hooks/                      # Custom hook (useClubValidator)
+│   │   └── page.tsx                    # Club validation module
 │   ├── components/
-│   │   ├── AgeForm.tsx             # Age calculator frontend component
-│   │   └── AgeForm.module.css      # Scoped styles for the age form
-│   ├── hooks/
-│   │   └── useAgeCalculator.ts     # State management and API logic for the age feature
-│   └── page.tsx                    # Age calculator Server Component
-├── club/
-│   ├── components/
-│   │   ├── ClubForm.tsx            # Club validator frontend component
-│   │   └── ClubForm.module.css     # Scoped styles for the club form
-│   ├── hooks/
-│   │   └── useClubValidator.ts     # State management and API logic for the club feature
-│   └── page.tsx                    # Club validator Server Component
-├── results/
-│   ├── components/
-│   │   ├── ResultForm.tsx          # Consolidated results frontend component
-│   │   └── ResultForm.module.css   # Scoped styles for the results form & JSON viewer
-│   ├── hooks/
-│   │   └── useResultValidator.ts   # State management and API logic for the results feature
-│   └── page.tsx                    # Consolidated results Server Component
-├── components/
-│   └── Footer.tsx                  # Centralized global footer & conditional navigation
-├── globals.css                     # Global styles
-├── layout.tsx                      # Root layout wrapping all routes with global shell
-└── page.tsx                        # Main dashboard menu
-prisma/
-└── schema.prisma                   # Prisma data models (AgeRecord & ClubRecord)
-prisma.config.ts                    # Prisma 7 configuration file (Datasource & Client settings)
+│   │   └── Footer.tsx                  # Global navigation footer
+│   ├── lib/
+│   │   └── prisma.ts                   # Singleton Prisma 7 + pg Pool client
+│   ├── results/
+│   │   ├── components/                 # Consolidated JSON viewer & scoped CSS
+│   │   ├── hooks/                      # Custom hook (useResultValidator)
+│   │   └── page.tsx                    # Stored Procedure reporting module
+│   ├── users/
+│   │   ├── components/
+│   │   │   ├── UsersCreate.module.css  # Scoped styles for User Management
+│   │   │   └── UsersCreateForm.tsx     # Master User creation, lookup & auto-hydration form
+│   │   └── page.tsx                    # User Management route entry
+│   ├── globals.css                     # Global reset and theme variables
+│   ├── layout.tsx                      # Root application shell
+│   └── page.tsx                        # Two-row main navigation dashboard
+├── postman/
+│   └── postman_collection.json         # Pre-configured API request collection
+├── prisma/
+│   ├── migrations/                     # SQL migration history
+│   ├── schema.prisma                   # 3NF + JSONB relational schema
+│   └── seed.ts                         # Automated DB seed & PL/pgSQL Stored Function builder
+├── Dockerfile                          # Multi-stage production Node 22 Alpine build
+├── docker-compose.yml                  # Container orchestration (Next.js App + PostgreSQL)
+├── prisma.config.ts                    # Prisma 7 datasource configuration
+└── vitest.config.mjs                   # Vitest test runner configuration
 
 ```
 
-## 📦 Installed Dependencies
+---
 
-To support the PostgreSQL adapter configuration required by **Prisma 7**, the following packages were added to the project:
+## 🗄️ Relational Schema Architecture (3NF + JSONB)
 
-- **`@prisma/adapter-pg`** — Official Prisma driver adapter for PostgreSQL.
-- **`pg`** — Native PostgreSQL client for Node.js.
-- **`@types/pg`** — TypeScript definitions for the `pg` client.
-- **`dotenv`** — Ensures local WSL environments can seamlessly load `.env` variables into `prisma.config.ts` during CLI execution.
+The database layer enforces strict **Third Normal Form (3NF)** across core domain entities while leveraging **PostgreSQL `JSONB**` for dynamic applicant responses:
+
+1. **`Country`:** Master reference table (`id`, `code`, `name`).
+2. **`User`:** Master identity table (`id`, `email @unique`, `identificationNumber BigInt`, `phoneNumber BigInt`, `countryId` FK).
+3. **`AgeRecord` & `ClubRecord`:** Strictly bound 1:1 child tables referencing `User(id)` with `ON DELETE CASCADE`. Dependent endpoints (`/api/age`, `/api/club`, `/api/metadata`) **never** create users implicitly; they enforce pre-existence checks (`404 Not Found` if the user profile is absent).
+4. **`UserMetadata`:** Hybrid 1:1 table storing dynamic candidate form submissions inside a `customData` `JSONB` column.
+5. **`ConfigSection` -> `ConfigQuestion` -> `ConfigAnswer`:** Hierarchical configuration engine per country, supporting conditional DAG visibility (`conditionJson`), pre-filled values, locked boolean options, custom sort ordering, and soft-delete archiving (`isArchived`).
+
+---
 
 ## 🐳 Running with Docker
 
-This project is fully containerized for local development and persistence.
-
-1. **Build and start the containers (with a clean build if needed):**
-
+1. **Build and start the containers:**
 ```bash
 docker compose up --build --no-cache
 
 ```
 
 2. **Access the application:**
-   Open your browser and navigate to: `http://localhost:3000`
-3. **Check container logs (useful for debugging backend/API errors):**
-
+Navigate to `http://localhost:3000`
+3. **Inspect container logs:**
 ```bash
 docker compose logs -f
 
 ```
 
 4. **Stop the environment:**
-
 ```bash
 docker compose down
 
 ```
 
-## 🗄️ Database Management & Prisma
+---
 
-Ensure your Docker containers are running (`docker compose up -d`) so that port `5432` is exposed to your host machine before running local database commands. Thanks to `dotenv`, your local Prisma CLI will automatically read the `localhost` mapping from your root `.env` file.
+## ⚙️ Local Development, Seeding & Testing
 
-- **Generate Prisma Client (Update types after schema changes):**
+Ensure your PostgreSQL container is running (`docker compose up -d`) so port `5432` is exposed locally.
 
-```bash
-npx prisma generate
-
-```
-
-- **Push schema changes directly to the database:**
-
-```bash
-npx prisma db push
-
-```
-
-- **Open Prisma Studio (Visual DB Inspector):**
-  Launch the studio using the predefined NPM script to prevent WSL port-forwarding issues (forces port 5555):
-
-```bash
-npm run studio
-
-```
-
-- **Access the PostgreSQL container shell:**
-
-```bash
-docker compose exec db psql -U admin -d app_db
-
-```
-
-> ⚠️ **Database Requirement for the Results Module:**
-> To successfully execute the `/api/results` endpoint and view consolidated records, the underlying PostgreSQL database must have the custom PL/pgSQL function created beforehand:
->
-> ```sql
-> CREATE OR REPLACE FUNCTION get_full_user_summary(email_input TEXT)
-> RETURNS TABLE (...) -- defined according to your consolidated table structure
-> ...
->
-> ```
-
-## ⚙️ Prerequisites & Local Setup
-
-If you want to run or develop locally outside of Docker, ensure you have **Node.js (LTS)** installed, then install the dependencies:
-
+1. **Install dependencies:**
 ```bash
 npm install
 
 ```
 
-## 🏗️ Key Implementation Notes
+2. **Synchronize Prisma Schema & Generate Client:**
+```bash
+npx prisma db push
+npx prisma generate
 
-- **App Router Paradigm:** Uses directory-based routing (`app/`) for server/client component boundaries.
-- **Feature-Based Modularity:** Business logic is abstracted into custom hooks and UI is isolated in dedicated components.
-- **Strongly Typed Architecture:** Type safety enforced across forms using modern React event typing (`React.SyntheticEvent`).
-- **Prisma 7 Configuration:** Relies on `prisma.config.ts` for database connection management and `@prisma/adapter-pg` for raw query handling (`prisma.$queryRaw`).
-- **Persistent Storage:** Configured with Docker volumes to ensure database state survives container restarts.
+```
 
-## 🛡️ Data Integrity & Security Architecture
+3. **Seed Database & Compile PostgreSQL Stored Functions:**
+The seed script (`prisma/seed.ts`) automatically provisions countries, sample DAG sections (Portugal & Greece), a default candidate profile, and compiles the required **PL/pgSQL Stored Functions** (`get_user_consolidated_summary` and `get_paginated_users`):
+```bash
+npm run seed
 
-The application implements a robust, defensive data submission pipeline designed around strict integrity constraints and modern validation patterns:
+```
 
-- **Email-Anchored Database Upserts (`Prisma`):** Both `AgeRecord` and `ClubRecord` database models enforce a strict unique constraint on the `email` column (`@unique`). Backend mutation logic utilizes Prisma's `upsert` operations, ensuring that user submissions seamlessly update existing records or create new ones without throwing primary key violations or generating data duplicates.
-- **Rigorous Input Validation (`Zod`):** Incoming API requests are intercepted and sanitized using Zod schemas. Manual defensive checks are replaced by strongly-typed validation rules (such as email formats and strict type-casting from `unknown`), rejecting malformed payloads with descriptive error codes (`400 Bad Request`) before touching the persistence layer.
-- **Strict Type Safety (.NET-Inspired Interface Pattern):** API routes explicitly declare request body interfaces with `unknown` types, enforcing deliberate type-narrowing and runtime safety guards prior to executing business logic or interacting with the database client.
-- **Optimized Database Layer (Stored Functions & B-Tree Indexes):** High-performance backend routines leverage native PostgreSQL stored functions combined with custom B-tree indexes featuring `INCLUDE` clauses to minimize heap fetches and accelerate data retrieval.
+4. **Run Integration Tests (Vitest):**
+Executes end-to-end tests against the live PostgreSQL database, verifying `BigInt` user creation, `404` orphan rejection on child routes, 3NF cascades, DAG configuration upserts, JSONB persistence, and Stored Function execution:
+```bash
+npm run test
 
-## ⚠️ Troubleshooting & Common Pitfalls
+```
 
-### Prisma Studio Connectivity Issues (WSL & Docker Environment)
+5. **Typecheck & Format Code:**
+```bash
+npx tsc --noEmit
+npm run format
 
-If you encounter connection refusals or timeouts when attempting to launch Prisma Studio from within the WSL terminal while running a containerized PostgreSQL instance, keep the following architectural constraints in mind:
+```
 
-- **Container Isolation:** The database container (`postgres_db`) runs on an isolated internal Docker bridge network. Ensure your local `.env` configuration file points to the correct host and mapped port (`localhost:5432`) when querying or running studio tools from the host machine outside the container network.
-- **Port Conflicts & Zombie Processes:** If the Prisma Studio port gets stuck or fails to bind due to lingering Node processes in the WSL environment, forcefully clear the port before restarting:
+6. **Launch Prisma Studio (Port 5555):**
+```bash
+npm run studio
+
+```
+
+---
+
+## ⚠️ Troubleshooting (WSL2 & Prisma Studio)
+
+If Prisma Studio fails to bind to port `5555` due to lingering processes in WSL2, terminate zombie processes before restarting:
 
 ```bash
 fuser -k 5555/tcp
@@ -174,4 +199,6 @@ pkill -f "prisma studio"
 
 ```
 
-# NOTE: README built by LLM, validated by me!
+---
+
+*Architected, debugged, and validated by **Hugo Azevedo** — built in collaboration with **Google Gemini Argon**.*
