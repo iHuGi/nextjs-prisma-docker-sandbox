@@ -48,17 +48,28 @@ export default function CandidateApplyForm() {
     useState<string>("Portugal (PT)");
   const [, setShowCountryDropdown] = useState(false);
   const [sections, setSections] = useState<Section[]>([]);
+  const [collapsedSections, setCollapsedSections] = useState<
+    Record<number, boolean>
+  >({});
   const [formResponses, setFormResponses] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Toggle collapse state for a specific section ID
+  const toggleSectionCollapse = (sectionId: number) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }));
+  };
 
   // Load candidate users and available countries from the database on mount
   useEffect(() => {
     async function loadInitialData() {
       try {
         const [usersRes, countriesRes] = await Promise.all([
-          fetch("/api/admin/users"),
+          fetch("/api/users"),
           fetch("/api/admin/countries"),
         ]);
         const usersData = await usersRes.json();
@@ -119,6 +130,7 @@ export default function CandidateApplyForm() {
       const data = await res.json();
       if (data.success && data.country) {
         setSections(data.country.sections || []);
+        setCollapsedSections({});
       } else {
         setSections([]);
       }
@@ -274,6 +286,8 @@ export default function CandidateApplyForm() {
           val === "" ||
           (Array.isArray(val) && val.length === 0);
         if (isEmpty) {
+          // Automatically expand the section if a required question inside it is missing
+          setCollapsedSections((prev) => ({ ...prev, [sec.id]: false }));
           alert(`Please answer the required question: "${q.label}"`);
           return;
         }
@@ -424,102 +438,130 @@ export default function CandidateApplyForm() {
             const visibleQuestions = sec.questions.filter(isQuestionVisible);
             if (visibleQuestions.length === 0) return null;
 
+            const isCollapsed = !!collapsedSections[sec.id];
+
             return (
               <div key={sec.id} className={styles.card}>
-                <h3 className={styles.sectionTitle}>{sec.name}</h3>
+                {/* Collapsible Section Header */}
+                <div
+                  onClick={() => toggleSectionCollapse(sec.id)}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    cursor: "pointer",
+                    userSelect: "none",
+                    marginBottom: isCollapsed ? 0 : "14px",
+                  }}
+                >
+                  <h3 className={styles.sectionTitle} style={{ margin: 0 }}>
+                    {sec.name} ({visibleQuestions.length})
+                  </h3>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "#a1a1aa",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {isCollapsed ? "▶ Show" : "▼ Hide"}
+                  </span>
+                </div>
 
-                {visibleQuestions.map((q) => (
-                  <div key={q.id} className={styles.fieldGroup}>
-                    <label className={styles.label}>
-                      {q.label}{" "}
-                      {q.isRequired && (
-                        <span className={styles.required}>*</span>
-                      )}
-                    </label>
+                {/* Collapsible Questions Body */}
+                {!isCollapsed &&
+                  visibleQuestions.map((q) => (
+                    <div key={q.id} className={styles.fieldGroup}>
+                      <label className={styles.label}>
+                        {q.label}{" "}
+                        {q.isRequired && (
+                          <span className={styles.required}>*</span>
+                        )}
+                      </label>
 
-                    {q.answerType === "text" ? (
-                      <input
-                        type="text"
-                        value={formResponses[q.id] || ""}
-                        placeholder={q.preFilledText || "Type your answer..."}
-                        onChange={(e) =>
-                          handleInputChange(q.id, e.target.value)
-                        }
-                        className={styles.input}
-                      />
-                    ) : q.answerType === "bool" ? (
-                      <select
-                        value={formResponses[q.id] || ""}
-                        onChange={(e) =>
-                          handleInputChange(q.id, e.target.value)
-                        }
-                        className={styles.select}
-                      >
-                        <option value="">Select Yes / No...</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    ) : q.answerType === "multi" ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "8px",
-                          padding: "10px 12px",
-                          background: "rgba(255, 255, 255, 0.03)",
-                          border: "1px solid rgba(255, 255, 255, 0.12)",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        {q.answers.map((ans) => {
-                          const selectedList: string[] = Array.isArray(
-                            formResponses[q.id],
-                          )
-                            ? formResponses[q.id]
-                            : [];
-                          const isChecked = selectedList.includes(ans.label);
-                          return (
-                            <label
-                              key={ans.id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                fontSize: "13px",
-                                cursor: "pointer",
-                                color: "#f4f4f5",
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() =>
-                                  handleMultiSelectToggle(q.id, ans.label)
-                                }
-                              />
+                      {q.answerType === "text" ? (
+                        <input
+                          type="text"
+                          value={formResponses[q.id] || ""}
+                          placeholder={q.preFilledText || "Type your answer..."}
+                          onChange={(e) =>
+                            handleInputChange(q.id, e.target.value)
+                          }
+                          className={styles.input}
+                        />
+                      ) : q.answerType === "bool" ? (
+                        <select
+                          value={formResponses[q.id] || ""}
+                          onChange={(e) =>
+                            handleInputChange(q.id, e.target.value)
+                          }
+                          className={styles.select}
+                        >
+                          <option value="">Select Yes / No...</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      ) : q.answerType === "multi" ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                            padding: "10px 12px",
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: "1px solid rgba(255, 255, 255, 0.12)",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          {q.answers.map((ans) => {
+                            const selectedList: string[] = Array.isArray(
+                              formResponses[q.id],
+                            )
+                              ? formResponses[q.id]
+                              : [];
+                            const isChecked = selectedList.includes(ans.label);
+                            return (
+                              <label
+                                key={ans.id}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  fontSize: "13px",
+                                  cursor: "pointer",
+                                  color: "#f4f4f5",
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() =>
+                                    handleMultiSelectToggle(q.id, ans.label)
+                                  }
+                                />
+                                {ans.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <select
+                          value={formResponses[q.id] || ""}
+                          onChange={(e) =>
+                            handleInputChange(q.id, e.target.value)
+                          }
+                          className={styles.select}
+                        >
+                          <option value="">Select an option...</option>
+                          {q.answers.map((ans) => (
+                            <option key={ans.id} value={ans.label}>
                               {ans.label}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <select
-                        value={formResponses[q.id] || ""}
-                        onChange={(e) =>
-                          handleInputChange(q.id, e.target.value)
-                        }
-                        className={styles.select}
-                      >
-                        <option value="">Select an option...</option>
-                        {q.answers.map((ans) => (
-                          <option key={ans.id} value={ans.label}>
-                            {ans.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                ))}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  ))}
               </div>
             );
           })
