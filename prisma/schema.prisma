@@ -11,18 +11,20 @@ datasource db {
 // ==========================================
 
 model User {
-  id                   Int      @id @default(autoincrement())
-  email                String   @unique
+  id                   Int           @id @default(autoincrement())
+  email                String        @unique
   identificationNumber BigInt
   phoneNumber          BigInt
   countryId            Int
-  createdAt            DateTime @default(now())
+  createdAt            DateTime      @default(now())
   updatedAt            DateTime?
 
-  country    Country       @relation(fields: [countryId], references: [id], onDelete: Restrict)
-  ageRecord  AgeRecord?
-  clubRecord ClubRecord?
-  metadata   UserMetadata?
+  country        Country         @relation(fields: [countryId], references: [id], onDelete: Restrict)
+  ageRecord      AgeRecord?
+  clubRecord     ClubRecord?
+  metadata       UserMetadata?
+  sentEmails     SentEmail[]
+  receivedEmails ReceivedEmail[]
 }
 
 model AgeRecord {
@@ -125,4 +127,46 @@ model ConfigAnswer {
   question ConfigQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@index([questionId, sortOrder])
+}
+
+// ==========================================
+// 3. RELATIONAL EMAIL ENGINE (SMTP / IMAP)
+// ==========================================
+
+model SentEmail {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  subject         String
+  body            String   @db.Text
+  messageId       String   @unique // RFC 5322 Message-ID generated on SMTP dispatch
+  receivedEmailId Int?     // Nullable FK: populated when replying to a specific ReceivedEmail
+  createdAt       DateTime @default(now())
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentEmail   ReceivedEmail?  @relation("SentReplyToReceived", fields: [receivedEmailId], references: [id], onDelete: SetNull)
+  replies       ReceivedEmail[] @relation("ReceivedReplyToSent")
+
+  @@index([userId, createdAt])
+  @@index([receivedEmailId])
+}
+
+model ReceivedEmail {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  subject     String
+  body        String    @db.Text
+  messageId   String    @unique // RFC 5322 Message-ID from Gmail IMAP (prevents duplicate ingestion)
+  inReplyTo   String?   // Raw In-Reply-To header for auditability
+  isRead      Boolean   @default(false)
+  sentEmailId Int?      // Nullable FK: populated if In-Reply-To matches a SentEmail.messageId
+  receivedAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentEmail SentEmail?  @relation("ReceivedReplyToSent", fields: [sentEmailId], references: [id], onDelete: SetNull)
+  replies     SentEmail[] @relation("SentReplyToReceived")
+
+  @@index([userId, isRead])
+  @@index([sentEmailId])
 }

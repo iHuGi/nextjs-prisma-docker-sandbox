@@ -1,9 +1,67 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+
+// Mock SMTP & IMAP transport boundary so integration tests validate PostgreSQL
+// relational constraints and DTO serialization deterministically offline.
+const OUTBOUND_FIRST_MESSAGE_ID = "<vitest-outbound-1@gmail.com>";
+const OUTBOUND_REPLY_MESSAGE_ID = "<vitest-outbound-reply-2@gmail.com>";
+const INBOUND_MATCHED_REPLY_MSG_ID = "<vitest-inbound-reply-1@gmail.com>";
+const INBOUND_STANDALONE_MSG_ID = "<vitest-inbound-standalone-2@gmail.com>";
+const INBOUND_UNKNOWN_SENDER_MSG_ID = "<vitest-inbound-unknown-3@gmail.com>";
+
+let mockSmtpCallCount = 0;
+
+vi.mock("../app/lib/emailClient", () => ({
+  sendGmailMessage: vi.fn(async () => {
+    mockSmtpCallCount++;
+    return {
+      messageId:
+        mockSmtpCallCount === 1
+          ? OUTBOUND_FIRST_MESSAGE_ID
+          : OUTBOUND_REPLY_MESSAGE_ID,
+    };
+  }),
+  fetchRecentGmailMessages: vi.fn(async () => [
+    {
+      // 1. Reply from registered user matching OUTBOUND_FIRST_MESSAGE_ID
+      messageId: INBOUND_MATCHED_REPLY_MSG_ID,
+      fromEmail: "john.doe.integration@gmail.com",
+      subject: "Re: Welcome to Recruitment Platform",
+      body: "Thank you! Here is my reply to your initial email.",
+      inReplyTo: OUTBOUND_FIRST_MESSAGE_ID,
+      receivedAt: new Date("2026-10-31T10:00:00.000Z"),
+    },
+    {
+      // 2. Standalone spontaneous email from registered user (no In-Reply-To)
+      messageId: INBOUND_STANDALONE_MSG_ID,
+      fromEmail: "jane.optional.parents@gmail.com",
+      subject: "Standalone Question from Candidate",
+      body: "Hello, I have a question regarding the application process.",
+      inReplyTo: null,
+      receivedAt: new Date("2026-10-31T10:05:00.000Z"),
+    },
+    {
+      // 3. Unregistered external sender (must be strictly ignored)
+      messageId: INBOUND_UNKNOWN_SENDER_MSG_ID,
+      fromEmail: "intruder.unregistered@external.org",
+      subject: "Spam / Unregistered Sender",
+      body: "This email must never be persisted into ReceivedEmail.",
+      inReplyTo: null,
+      receivedAt: new Date("2026-10-31T10:10:00.000Z"),
+    },
+  ]),
+}));
+
 import { POST as upsertUser } from "../app/api/users/route";
 import { POST as submitAge } from "../app/api/age/route";
 import { POST as submitClub } from "../app/api/club/route";
 import { POST as fetchResults } from "../app/api/results/route";
 import { POST as postAdminConfig } from "../app/api/admin/config/route";
+import { POST as sendEmailRoute } from "../app/api/emails/send/route";
+import {
+  GET as getInboxRoute,
+  POST as syncImapInboxRoute,
+  PATCH as patchEmailReadRoute,
+} from "../app/api/emails/inbox/route";
 import { prisma } from "../app/lib/prisma";
 
 // Run it from the command line via: npm run test
@@ -12,11 +70,14 @@ const TEST_EMAIL_OPTIONAL_PARENTS = "jane.optional.parents@gmail.com";
 const TEST_COUNTRY_CODE = "PT";
 const TEST_SECTION_NAME = "Integration Test Section";
 
-describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Users, Admin Engine & JSONB)", () => {
+describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Users, Admin Engine, JSONB & Email Engine)", () => {
   let createdUserId: number;
+  let secondUserId: number;
   let createdSectionId: number;
   let createdQuestionId: number;
   let ptCountryId: number;
+  let initialSentEmailId: number;
+  let standaloneReceivedEmailId: number;
 
   /**
    * Purge pre-existing test state to ensure complete test isolation.
@@ -87,7 +148,9 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Users, Adm
       }),
     });
     const res2 = await upsertUser(req2);
+    const json2 = await res2.json();
     expect(res2.status).toBe(200);
+    secondUserId = json2.user.id;
   });
 
   it("Should reject AgeRecord and ClubRecord submissions with 404 when User does not exist", async () => {
@@ -327,5 +390,120 @@ describe("API Integration Tests - Real PostgreSQL DB (Normalized 3NF, Users, Adm
     expect(json.data.email).toBe(TEST_EMAIL);
     expect(json.data.club_name).toBe("Sporting");
     expect(json.data.user_id).toBeDefined();
+  });
+
+  // ============================================================================
+  // RELATIONAL EMAIL ENGINE INTEGRATION TESTS (SentEmail <-> ReceivedEmail)
+  // ============================================================================
+
+  it("Should dispatch an initial outbound email to a registered User and reject non-existent Users with 404", async () => {
+    // 1. Reject non-existent user ID
+    const ghostReq = new Request("http://localhost:3000/api/emails/send", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: 9999999,
+        subject: "Ghost Email",
+        body: "Should fail with 404",
+      }),
+    });
+    const ghostRes = await sendEmailRoute(ghostReq);
+    expect(ghostRes.status).toBe(404);
+
+    // 2. Dispatch valid initial email to createdUserId
+    const validReq = new Request("http://localhost:3000/api/emails/send", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: createdUserId,
+        subject: "Welcome to Recruitment Platform",
+        body: "Hello John, please confirm your application details.",
+        receivedEmailId: null,
+      }),
+    });
+    const validRes = await sendEmailRoute(validReq);
+    const validJson = await validRes.json();
+
+    expect(validRes.status).toBe(200);
+    expect(validJson.success).toBe(true);
+    expect(validJson.sentEmail.userId).toBe(createdUserId);
+    expect(validJson.sentEmail.messageId).toBe(OUTBOUND_FIRST_MESSAGE_ID);
+    expect(validJson.sentEmail.receivedEmailId).toBeNull();
+
+    initialSentEmailId = validJson.sentEmail.id;
+  });
+
+  it("Should synchronize inbound emails via IMAP, ignore unregistered senders, and link In-Reply-To against SentEmail", async () => {
+    const syncRes = await syncImapInboxRoute();
+    const syncJson = await syncRes.json();
+
+    expect(syncRes.status).toBe(200);
+    expect(syncJson.success).toBe(true);
+    expect(syncJson.syncedCount).toBe(2);
+    expect(syncJson.skippedUnknownSenders).toBe(1);
+
+    // Verify matched reply email has sentEmailId pointing to initialSentEmailId
+    const matchedReply = await prisma.receivedEmail.findUnique({
+      where: { messageId: INBOUND_MATCHED_REPLY_MSG_ID },
+    });
+    expect(matchedReply).not.toBeNull();
+    expect(matchedReply?.userId).toBe(createdUserId);
+    expect(matchedReply?.sentEmailId).toBe(initialSentEmailId);
+    expect(matchedReply?.isRead).toBe(false);
+
+    // Verify standalone email from second registered user has sentEmailId === null
+    const standaloneEmail = await prisma.receivedEmail.findUnique({
+      where: { messageId: INBOUND_STANDALONE_MSG_ID },
+    });
+    expect(standaloneEmail).not.toBeNull();
+    expect(standaloneEmail?.userId).toBe(secondUserId);
+    expect(standaloneEmail?.sentEmailId).toBeNull();
+    expect(standaloneEmail?.isRead).toBe(false);
+
+    standaloneReceivedEmailId = standaloneEmail!.id;
+  });
+
+  it("Should toggle Read/Unread flags on ReceivedEmail and map SentEmail.receivedEmailId when replying to a standalone ReceivedEmail", async () => {
+    // 1. Toggle standalone email to Read via PATCH /api/emails/inbox
+    const patchReq = new Request("http://localhost:3000/api/emails/inbox", {
+      method: "PATCH",
+      body: JSON.stringify({
+        receivedEmailId: standaloneReceivedEmailId,
+        isRead: true,
+      }),
+    });
+    const patchRes = await patchEmailReadRoute(patchReq);
+    const patchJson = await patchRes.json();
+    expect(patchRes.status).toBe(200);
+    expect(patchJson.receivedEmail.isRead).toBe(true);
+
+    // 2. Verify GET /api/emails/inbox?filter=read returns the read email with BigInt-safe DTOs
+    const getReadReq = new Request(
+      "http://localhost:3000/api/emails/inbox?filter=read",
+    );
+    const getReadRes = await getInboxRoute(getReadReq);
+    const getReadJson = await getReadRes.json();
+    expect(getReadRes.status).toBe(200);
+    expect(
+      getReadJson.receivedEmails.some(
+        (e: any) => e.id === standaloneReceivedEmailId && e.isRead === true,
+      ),
+    ).toBe(true);
+
+    // 3. Reply to the standalone ReceivedEmail via POST /api/emails/send
+    const replyReq = new Request("http://localhost:3000/api/emails/send", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: secondUserId,
+        subject: "Re: Standalone Question from Candidate",
+        body: "Here is the official answer to your standalone question.",
+        receivedEmailId: standaloneReceivedEmailId,
+      }),
+    });
+    const replyRes = await sendEmailRoute(replyReq);
+    const replyJson = await replyRes.json();
+
+    expect(replyRes.status).toBe(200);
+    expect(replyJson.success).toBe(true);
+    expect(replyJson.sentEmail.receivedEmailId).toBe(standaloneReceivedEmailId);
+    expect(replyJson.sentEmail.userId).toBe(secondUserId);
   });
 });
