@@ -235,4 +235,3 @@ pkill -f "prisma studio"
 ---
 
 *Architected, debugged, and validated by **Hugo Azevedo** — built in collaboration with **Google Gemini Argon**.*
-
